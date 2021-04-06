@@ -1,8 +1,8 @@
 USE heroku_3a5c08c4331bb7e;
 
 CREATE TABLE Person(
-    Person_ID	INT PRIMARY KEY AUTO_INCREMENT,
-    VK_ID	BIGINT NOT NULL
+	VK_ID	BIGINT PRIMARY KEY,
+    Person_ID	INTEGER NOT NULL
 );
 
 CREATE TABLE Test(
@@ -24,37 +24,39 @@ CREATE TABLE Answer(
     Question_ID INTEGER,
     Description	VARCHAR(1000) NOT NULL,
     Value	INTEGER NOT NULL,
-    FOREIGN KEY (Question_ID) REFERENCES Question (Question_ID )
+    FOREIGN KEY (Question_ID) REFERENCES Question (Question_ID)
 );
 
 CREATE TABLE Person_Answer(
     Person_Answer_ID	INT PRIMARY KEY AUTO_INCREMENT,
-    Person_ID	INTEGER,
+    VK_ID	BIGINT,
     Answer_ID	INTEGER,
-    FOREIGN KEY (Person_ID)  REFERENCES Person (Person_ID),
+    Reply_Date 	DATETIME,
+    FOREIGN KEY (VK_ID)  REFERENCES Person (VK_ID),
     FOREIGN KEY (Answer_ID)  REFERENCES Answer (Answer_ID)
 );
 
 CREATE TABLE Result(
     Result_ID	INT PRIMARY KEY AUTO_INCREMENT,
-    Person_ID	INTEGER,
+    VK_ID	BIGINT,
     Test_ID	INTEGER,
     Factor	VARCHAR(1000),
     Value	INTEGER NOT NULL,
-    FOREIGN KEY (Person_ID)  REFERENCES Person (Person_ID),
+    FOREIGN KEY (VK_ID)  REFERENCES Person (VK_ID),
     FOREIGN KEY (Test_ID)  REFERENCES Test (Test_ID)
 );
 
 CREATE TABLE Post(
     Post_ID	INT PRIMARY KEY AUTO_INCREMENT,
-    Person_ID	INTEGER,
+    VK_ID	BIGINT,
     Description	TEXT,
     Photo	VARCHAR(500),
     Likes	INTEGER NOT NULL,
     Views	INTEGER	NOT NULL,
     Reposts	INTEGER	NOT NULL,
     Comments	INTEGER	NOT NULL,
-    FOREIGN KEY (Person_ID)  REFERENCES Person (Person_ID)
+    Reply_Date 	DATETIME,
+    FOREIGN KEY (VK_ID)  REFERENCES Person (VK_ID)
 );
 
 
@@ -356,3 +358,11 @@ INSERT INTO Answer (question_id, description, value) VALUES
 (951, 'Нет', 0),
 (961, 'Да', 1),
 (961, 'Нет', 0);
+
+-- DROP TABLE Post;
+-- DROP TABLE Result;
+-- DROP TABLE Person_Answer;
+-- DROP TABLE Answer;
+-- DROP TABLE Question;
+-- DROP TABLE Test;
+-- DROP TABLE Person;
