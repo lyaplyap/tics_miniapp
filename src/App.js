@@ -1,11 +1,6 @@
 import { Panel, PanelHeader, Group, Cell, PanelHeaderBack, Button, FixedLayout } from '@vkontakte/vkui';
-import { CellButton, Alert, Div, Separator } from '@vkontakte/vkui';
-import { InfoRow, Progress } from '@vkontakte/vkui';
-
-import Icon28PrivacyOutline from '@vkontakte/icons/dist/28/privacy_outline';
-import Icon28CheckCircleDeviceOutline from '@vkontakte/icons/dist/28/check_circle_device_outline';
-import Icon28ListLikeOutline from '@vkontakte/icons/dist/28/list_like_outline';
-import Icon28GestureOutline from '@vkontakte/icons/dist/28/gesture_outline';
+import { ScreenSpinner, CellButton, Alert, Div, Separator } from '@vkontakte/vkui';
+import { Banner, InfoRow, Progress } from '@vkontakte/vkui';
 
 import React from 'react';
 import bridge from '@vkontakte/vk-bridge';
@@ -35,34 +30,46 @@ class App extends React.Component {
 		flagtest: [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
 		old_flagtest: [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
 
+		currentTestLable: '',
+		testList: [],
 		testInformation: [],
-		testAnswer: []
+		testQuestion: [],
+		testAnswer: [],
+		userChoice: []
 
 	}
 
 	  this.closePopout = this.closePopout.bind(this);
 	  this.addActionLogItem = this.addActionLogItem.bind(this);
+	  this.handleOptionChange = this.handleOptionChange.bind(this);
 	  
 	  // Психологическая защита (функции)
-	  this.defaultQuest = this.defaultQuest.bind(this);
-	  this.nextQuest = this.nextQuest.bind(this);
-	  this.handleOptionChange = this.handleOptionChange.bind(this);
+	  this.nextQuestion = this.nextQuestion.bind(this);
 	  this.testExit = this.testExit.bind(this);
 	  this.testActive = this.testActive.bind(this);
-	  this.sendToServer = this.sendToServer.bind(this);
 
 
 	  this.getUserId = this.getUserId.bind(this); // получение идентификатора текущего пользователя (user_id)
 	  this.toNecessaryPanel = this.toNecessaryPanel.bind(this); // получение user_id и переход на панель главного меню выбранного теста
 
-	  this.getQuestion = this.getQuestion.bind(this);
-	  this.getAnswer = this.getAnswer.bind(this);
+	  this.getTestList = this.getTestList.bind(this); // получение коллекции всех тестов
+	  this.getDonePercent = this.getDonePercent.bind(this); // получение процента отвеченных вопросов
+	  this.getInformation = this.getInformation.bind(this); // получении коллекции с информацией о тесте
+	  this.postPersonAnswer = this.postPersonAnswer.bind(this); // отправка ответа пользователя на сервер
+
+	  this.getUserPost = this.getUserPost.bind(this);
+	  this.testAccess = this.testAccess.bind(this);
 	}
 
+	componentDidMount () {
+		//console.log("componentDidMount()");
+		this.getTestList();
+		this.getDonePercent();
+	}
 
-	getAnswer () {
+	getTestList () {
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', 'answer', true);
+		xhr.open('GET', 'test-list', true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -71,20 +78,65 @@ class App extends React.Component {
 			} 
 			else { // если всё прошло гладко, выводим результат
 				//console.log(xhr.response.results); // response -- это ответ сервера
-
+				
+				let inf_length = 0;
 			  	for (let i = 0; i < xhr.response.results.length; i++) {
-					this.state.testAnswer.push(xhr.response.results[i]);
+					this.state.testList[inf_length] =  xhr.response.results[i];
+					inf_length++;
+					//this.setState({});
 			  	}
 			  	this.setState({});
 			}
-		  };
+		};
 
-		console.log(this.state.testAnswer);
+		//console.log(this.state.testList);
 	}
 
-	getQuestion () {
+	getDonePercent () {
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', 'question', true);
+		xhr.open('GET', 'test-percent/1', true);
+		xhr.responseType = 'json';
+		xhr.send();
+		xhr.onload = () => {
+			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
+				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
+			} 
+			else {
+				for (let i = 0; i < this.state.testList.length; i++) {
+					for (let j = 0; j < xhr.response.results.length; j++) {
+						if (this.state.testList[i].Test_ID === xhr.response.results[j].Test_ID) {
+							this.state.testList[i].Question_Count = xhr.response.results[j].Question_Count;
+							this.state.testList[i].Question_Done_Count = Number(xhr.response.results[j].Question_Done_Count);
+							//this.setState({});
+						}
+					}
+					this.setState({});
+				}
+			}
+		};
+
+		console.log(this.state.testList);
+	}
+
+	testAccess () {
+		console.log(`Длина списка вопросов = ${this.state.testInformation.length}`);
+		for (let i = 0; i < this.state.testInformation.length; i++) {
+			if (this.state.testInformation[i].isDone == 0) {
+				this.state.countquest = i;
+				this.setState({});
+				return;
+			}
+		}
+	}
+
+	getInformation (test_id) {
+		if (this.state.testInformation.length !== 0) {
+			this.state.testInformation = [];
+			this.setState({});
+		}
+
+		let xhr = new XMLHttpRequest();
+		xhr.open('GET', `test-information/${test_id}/1`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -93,33 +145,43 @@ class App extends React.Component {
 			} 
 			else { // если всё прошло гладко, выводим результат
 				//console.log(xhr.response.results); // response -- это ответ сервера
-
+				
+				let inf_length = 0;
 			  	for (let i = 0; i < xhr.response.results.length; i++) {
-					this.state.testInformation.push(xhr.response.results[i]);
+					this.state.testInformation[inf_length] =  xhr.response.results[i];
+					inf_length++;
+					//this.setState({});
 			  	}
 			  	this.setState({});
 			}
-		  };
+		};
 
 		console.log(this.state.testInformation);
 	}
 
-	toNecessaryPanel (panel) {
+	toNecessaryPanel (panel, test_id) {
 		this.getUserId();
-		this.getQuestion();
-		this.getAnswer();
-		this.setState({ activePanel:  panel })
+
+		this.setState({ currentTestLable: this.state.testList[(test_id - 1) / 10].Name });
+
+		this.getInformation(test_id);
+
+		this.setState({ popout: <ScreenSpinner /> });
+    	setTimeout(() => { this.setState({ popout: null }) }, 1000);
+
+		this.setState({ activePanel: panel });
 	}
 	
-	sendToServer() {
+	postPersonAnswer (index) {
+		let data = JSON.stringify({
+									person_answer: this.state.testInformation[this.state.countquest].Answers[index].Answer_ID, 
+									id: 1 });//this.state.user_id });
+        let xhr = new XMLHttpRequest();
 
-		let data = JSON.stringify({flagtest: this.state.old_flagtest, id: this.state.user_id });
-        let request = new XMLHttpRequest();
-        // посылаем запрос на адрес "/user"
-        request.open("POST", "/user", true);   
-        request.setRequestHeader("Content-Type", "application/json");
-        request.send(data);
-		
+        // Посылаем запрос с данными на адрес "/person-answer"
+        xhr.open("POST", "/person-answer", true);   
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(data);
 	}
 
 	getUserId () {
@@ -134,8 +196,9 @@ class App extends React.Component {
 	}
 
 	testActive () {
-		if (this.state.countquest >= 97) {
-			this.setState({ flagtest: [0, 0, 0, 0, 0, 0, 0, 0, 0], countquest: 0, activePanel: 'questions' });
+		this.testAccess();
+		if (this.state.countquest >= this.state.testInformation.length) {
+			this.setState({ countquest: 0, activePanel: 'questions' });
 		}
 		else {
 			this.setState({ activePanel: 'questions' });
@@ -150,7 +213,7 @@ class App extends React.Component {
 			  title: 'Выйти',
 			  autoclose: true,
 			  mode: 'destructive',
-			  action: () => this.setState({ activePanel: 'defense-test'}),
+			  action: () => this.setState({ activePanel: 'test-mainpage'}),
 			}, {
 			  title: 'Остаться',
 			  autoclose: true,
@@ -164,47 +227,64 @@ class App extends React.Component {
 		});
 	  }
 
+	nextQuestion (index) {
+		// Отправка на сервер ответа пользователя на вопрос
+		this.postPersonAnswer(index);
+
+		// Записываем в testInformation, что данный вопрос был отвечен
+		this.state.testInformation[this.state.countquest].isDone = 1;
+		this.setState({});
+		
+		// Переход к следующему вопросу
+		this.state.countquest++;
+		if (this.state.countquest >= this.state.testInformation.length) {
+			this.setState({ activePanel: 'results' });
+			
+			// обработка результатов тестирования
+
+			return;
+		}
+		this.setState({});
+	}
+
+	getUserPost () {
+		bridge
+			.send("VKWebAppCallAPIMethod", 
+				 	{
+						"method": "wall.get", 
+						"request_id": "test123", 
+						"params": {
+									"owner_id": this.state.user_id, 
+									"count": 100,
+									"v":"5.84", 
+									"access_token":"" // здесь необходимо вставить access_token приложения/пользователя
+								}
+					})
+			.then(data => {
+				console.log(data);
+			})
+			.catch(error => {
+				console.log(error);
+			});
+	}
+
+	
+	// Что-то левое
 	handleOptionChange(changeEvent) {
 		this.setState({
 		  selectedOption: changeEvent.target.value
 		});
 	}
 
-	nextQuest () {
-		this.state.countquest++;
-		if (this.state.countquest >= 97) {
-			this.setState({ activePanel: 'results' });
-			//for (var i = 0; i < 9; i++)
-			//{
-			//	this.state.old_flagtest[i] = this.state.flagtest[i];
-			//}
-			//this.sendToServer();
-			return;
-		}
-		this.setState({});
-	}
-
-	defaultQuest () {
-		if (this.state.snackbar) return;
-    	this.setState({snackbar:
-    	  	<Snackbar
-				duration={30000}
-    			onClose={() => this.setState({ snackbar: null })}
-  	  		>
-    			<Button size="xl" stretched mode="secondary" onClick={this.nextQuest}>Продолжить</Button>
-  	  		</Snackbar>
-    	});
-	  }
-
 	addActionLogItem(value) {
 		this.setState({
 		  actionsLog: [...this.state.actionsLog, value],
 		});
-	  }
+	}
 
 	closePopout () {
 		this.setState({ popout: null });
-	  }
+	}
 
   
 	render() {
@@ -212,16 +292,25 @@ class App extends React.Component {
 		<View activePanel={this.state.activePanel} popout={this.state.popout}>
 		  <Panel id="panel0">
 			<PanelHeader>Тесты</PanelHeader>
-			<Group>
-				<Cell expandable before={<Icon28PrivacyOutline/>} onClick={() => this.toNecessaryPanel('defense-test')}>
-					Тест на "Психологическую Защиту"
-				</Cell>
-			</Group>
+			<Div>
+				{
+					this.state.testList.map((ex, index) => (
+						<Banner
+							key={ex.Test_ID}
+							header={ex.Name}
+							subheader={`Вы прошли этот тест на ${((ex.Question_Done_Count * 100) / ex.Question_Count).toFixed(2)}%.`}
+							asideMode="expand"
+							onClick={() => this.toNecessaryPanel('test-mainpage', ex.Test_ID)}
+					  	/>
+					))
+				}
+			</Div>
+			{/*<Div><Button onClick={() => this.getUserPost()}>Do Magic!</Button></Div>*/}
 		  </Panel>
 
-		  <Panel id="defense-test">
+		  <Panel id="test-mainpage">
 		  	<PanelHeader left={<PanelHeaderBack onClick={() => this.setState({ activePanel: 'panel0' })}/>}>
-				Психологическая Защита
+				{this.state.currentTestLable}
 			</PanelHeader>
 				<Div>
 	  				<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.testActive()}>Пройти тест</Button>
@@ -232,11 +321,11 @@ class App extends React.Component {
 		  
 		  <Panel id="questions">
 		  	<PanelHeader left={<PanelHeaderBack onClick={this.testExit}/>}>
-				Вопрос {this.state.countquest+1}
+				Вопрос {this.state.countquest + 1}
 			</PanelHeader>
 			<Group>
 	  			{this.state.testInformation.length > 0 && this.state.countquest < this.state.testInformation.length &&
-				  <Div>{this.state.testInformation[this.state.countquest].Description}</Div>
+				  <Div>{this.state.testInformation[this.state.countquest].Question_Description}</Div>
 				}
 				<Separator/>
 				<FixedLayout vertical="bottom">
@@ -245,12 +334,12 @@ class App extends React.Component {
             			<Progress value={this.state.countquest * (100/this.state.testInformation.length)}/>
       				</Group>
 				</Div>
-				{this.state.testAnswer.length > 0 &&
+				{this.state.testInformation.length > 0 && this.state.countquest < this.state.testInformation.length &&
 					<Div>
 						{
-							this.state.testAnswer.map((ex, index) => (
+							this.state.testInformation[this.state.countquest].Answers.map((ex, index) => (
 								<Group key={index}>
-									<Button size="xl" stretched mode="secondary" onClick={() => this.nextQuest()}>{ex.Description}</Button>
+									<Button size="xl" stretched mode="secondary" onClick={() => this.nextQuestion(index)}>{ex.Description}</Button>
 								</Group>
 							))
 						}
@@ -262,56 +351,12 @@ class App extends React.Component {
 
 
 		  <Panel id="results">
-		  	<PanelHeader left={<PanelHeaderBack onClick={() => this.setState({ activePanel: 'defense-test' })}/>}>
+		  	<PanelHeader left={<PanelHeaderBack onClick={() => this.setState({ activePanel: 'test-mainpage' })}/>}>
 				Результаты
 			</PanelHeader>
-			{/*<Group>
-				<Cell multiline>
-          			<InfoRow header="Вытеснение">
-            			{Math.round(this.state.old_flagtest[0] / 12 * 100)} %
-          			</InfoRow>
-        		</Cell>
-        		<Cell>
-          			<InfoRow header="Отрицание">
-						{Math.round(this.state.old_flagtest[1] / 13 * 100)} %
-          			</InfoRow>
-        		</Cell>
-        		<Cell>
-          			<InfoRow header="Регрессия">
-					  	{Math.round(this.state.old_flagtest[2] / 14 * 100)} %
-          			</InfoRow>
-        		</Cell>
-				<Cell>
-          			<InfoRow header="Замещение">
-					  	{Math.round(this.state.old_flagtest[3] / 12 * 100)} %
-          			</InfoRow>
-        		</Cell>
-				<Cell>
-          			<InfoRow header="Компенсация">
-					  	{Math.round(this.state.old_flagtest[4] / 10 * 100)} %
-          			</InfoRow>
-        		</Cell>
-				<Cell>
-          			<InfoRow header="Гиперкомпенсация">
-					  	{Math.round(this.state.old_flagtest[5] / 10 * 100)} %
-          			</InfoRow>
-        		</Cell>
-				<Cell>
-          			<InfoRow header="Проекция">
-					  	{Math.round(this.state.old_flagtest[6] / 13 * 100)} %
-          			</InfoRow>
-        		</Cell>
-				<Cell>
-          			<InfoRow header="Рационализация">
-					  	{Math.round(this.state.old_flagtest[7] / 13 * 100)} %
-          			</InfoRow>
-        		</Cell>
-				<Cell>
-					<InfoRow header="Общая выраженность">
-					{Math.round(this.state.old_flagtest[8] / 97 * 100)} %
-					</InfoRow>
-				</Cell>
-			</Group>*/}
+			
+			{/* Отображение результатов тестирования */}
+		  
 		  </Panel>
 		</View>
 	  )
