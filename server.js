@@ -4,6 +4,7 @@ const path = require('path');
 const port = process.env.PORT || 8080;
 const mysql = require('mysql2');
 const enforce = require('express-sslify');
+const { SSL_OP_SSLEAY_080_CLIENT_DH_BUG } = require('constants');
  
 const app = express();
 app.use(enforce.HTTPS({ trustProtoHeader: true }));
@@ -20,8 +21,8 @@ app.get('/ping', function (req, res) {
 });
 
 
-// Отправка списка вопросов на фронтенд
-app.get("/question", function(request, response){
+// Отправка списка тестов на фронтенд
+app.get("/test-list", function(request, response){
     
     const connection = mysql.createConnection({
         host: "",
@@ -30,14 +31,12 @@ app.get("/question", function(request, response){
         password: ""
     });
 
-    const sql_zero = `SELECT * FROM Question;`;
+    const sql_zero = `SELECT * FROM Test;`;
        
     connection.query(sql_zero, function(error, results) {
         if (error)
             console.log(error);
         else {
-            //console.log(results);
-            
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: results }));
         }
@@ -49,13 +48,10 @@ app.get("/question", function(request, response){
         }
         console.log("Подключение закрыто");
     });
-
-    //response.setHeader('Content-Type', 'application/json');
-    //response.send(JSON.stringify(obj));
 });
 
-// Отправка списка вопросов на фронтенд
-app.get("/answer", function(request, response){
+// Отправка количества вопросов (общее и отвеченных) на фронтенд
+app.get("/test-percent/:user_id", function(request, response){
     
     const connection = mysql.createConnection({
         host: "",
@@ -64,14 +60,18 @@ app.get("/answer", function(request, response){
         password: ""
     });
 
-    const sql_zero = `SELECT * FROM Answer;`;
+    const sql_zero = `SELECT COUNT(Question_ID) as Question_Count, Test_ID, SUM(CountNotNull) as Question_Done_Count 
+                        FROM (SELECT a.Question_ID, q.Test_ID, COUNT(pa.VK_ID) as CountNotNull
+                                FROM answer as a 
+                                INNER JOIN question as q ON a.question_id = q.question_id
+                                LEFT JOIN (SELECT * FROM person_answer WHERE vk_id = ${request.params.user_id}) as pa ON pa.answer_id = a.answer_id
+                                GROUP BY q.Question_ID) as NewT
+                                    GROUP BY Test_ID;`;
        
     connection.query(sql_zero, function(error, results) {
         if (error)
             console.log(error);
         else {
-            //console.log(results);
-            
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: results }));
         }
@@ -83,9 +83,73 @@ app.get("/answer", function(request, response){
         }
         console.log("Подключение закрыто");
     });
+});
 
-    //response.setHeader('Content-Type', 'application/json');
-    //response.send(JSON.stringify(obj));
+// Отправка коллекции вопросов и ответов на фронтенд
+app.get("/test-information/:test_id/:user_id", function(request, response){
+    
+    const connection = mysql.createConnection({
+        host: "",
+        user: "",
+        database: "",
+        password: ""
+    });
+
+    const sql_zero = `SELECT a.Answer_ID, a.Question_ID, a.description as Answer_Description, 
+                             a.Value, q.Test_ID, q.Description as Question_Description, 
+                             q.Category, pa.VK_ID as isDone
+                            FROM answer as a 
+                                INNER JOIN question as q ON a.question_id = q.question_id
+                                LEFT JOIN (SELECT * FROM person_answer WHERE vk_id = ${request.params.user_id}) as pa ON pa.answer_id = a.answer_id
+                                    WHERE q.test_id = ${request.params.test_id};`;
+       
+    connection.query(sql_zero, function(error, results) {
+        if (error)
+            console.log(error);
+        else {
+            
+            // Обработка полученной коллекции объектов из таблицы Answer JOIN Question JOIN Person_Answer
+            let data = [];
+            for (let i = 0; i < results.length; i++) {
+                let is_exist = 0;
+                for (let j = 0; j < data.length; j++) {
+                    if (results[i].Question_ID === data[j].Question_ID) {
+                        data[j].Answers.push({
+                            Answer_ID: results[i].Answer_ID,
+                            Description: results[i].Answer_Description,
+                            Value: results[i].Value
+                        });
+                        data[j].isDone = (results[i].isDone !== null) ? 1 : data[j].isDone;
+                        is_exist = 1;
+                    }
+                }
+                if (is_exist === 0) {
+                    data.push({
+                        Question_ID: results[i].Question_ID,
+                        Test_ID: results[i].Test_ID,
+                        Question_Description: results[i].Question_Description,
+                        Category: results[i].Category,
+                        Answers: [{
+                            Answer_ID: results[i].Answer_ID,
+                            Description: results[i].Answer_Description,
+                            Value: results[i].Value
+                        }],
+                        isDone : (results[i].isDone !== null) ? 1 : 0
+                    });
+                }
+            }
+            
+            response.setHeader('Content-Type', 'application/json');
+            response.send(JSON.stringify({ results: data }));
+        }
+    });
+
+    connection.end(function(error) {
+        if (error) {
+            return console.log("Ошибка: " + error.message);
+        }
+        console.log("Подключение закрыто");
+    });
 });
 
 
@@ -94,16 +158,19 @@ app.get('/*', function (req, res) {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
-//получение данных теста на "Психологическую защиту"
-app.post("/user", jsonParser, function (request, response) {
+
+// Получение пользовательского ответа на вопрос из теста
+app.post("/person-answer", jsonParser, function (request, response) {
     console.log(request.body);
-    if(!request.body) return response.sendStatus(400);
+    if (!request.body) { 
+        return response.sendStatus(400);
+    }
 
-    var data = request.body["flagtest"];
-    console.log(data);
+    var person_answer = request.body["person_answer"];
+    var vk_id = request.body["id"]; 
 
-    var id = request.body["id"];
-    console.log(id);
+    var date = new Date();
+    var datetime = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
 
     const connection = mysql.createConnection({
         host: "",
@@ -112,52 +179,97 @@ app.post("/user", jsonParser, function (request, response) {
         password: ""
     });
 
-    const sql_zero = `create table if not exists defensetest(
-        id int primary key auto_increment,
-        def1 int not null,
-        def2 int not null,
-        def3 int not null,
-        def4 int not null,
-        def5 int not null,
-        def6 int not null,
-        def7 int not null,
-        def8 int not null,
-        def9 int not null,
-        vkid long not null
-      )`;
-       
-    connection.query(sql_zero, function(err, results) {
-        if(err) console.log(err);
-        else console.log("Таблица создана");
+    // Добавляем ответ пользователя в БД
+    const sql_add = "INSERT INTO person_answer(VK_ID, Answer_ID, Reply_Date) VALUES (?, ?, ?);";
+    const person_data = [vk_id, person_answer, datetime]
+    console.log(person_data)
+    connection.query(sql_add, person_data, function(error, results) {
+        if (error) {
+            console.log(error);
+        }
+        //console.log(results);
     });
 
-    const sql = `INSERT INTO defensetest(def1, def2, def3, def4, def5, def6, def7, def8, def9, vkid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const users = [request.body["flagtest"][0], request.body["flagtest"][1], request.body["flagtest"][2], request.body["flagtest"][3],
-                   request.body["flagtest"][4], request.body["flagtest"][5], request.body["flagtest"][6], request.body["flagtest"][7],
-                   request.body["flagtest"][8], request.body["id"]];
-    
-    connection.query(sql, users, function(err, results) {
-        if(err) console.log(err);
-        console.log(results);
-    });
-
-    // тестирование подключения
-    connection.connect(function(err){
-        if (err) {
-            return console.error("Ошибка: " + err.message);
-        }
-        else {
-            console.log("Подключение к серверу MySQL успешно установлено");
-        }
-    });
-    // закрытие подключения
-    connection.end(function(err) {
-        if (err) {
-            return console.log("Ошибка: " + err.message);
+    // Закрытие подключения
+    connection.end(function(error) {
+        if (error) {
+            return console.log("Ошибка: " + error.message);
         }
         console.log("Подключение закрыто");
     });
 
+    response.end('It worked!');
+});
+
+// Получение постов пользователя
+app.post("/person-post", jsonParser, function (request, response) {
+    console.log(request.body);
+    if (!request.body) { 
+        return response.sendStatus(400);
+    }
+
+    const connection = mysql.createConnection({
+        host: "",
+        user: "",
+        database: "",
+        password: ""
+    });
+
+    // Добавляем посты пользователя в БД
+    if (request.body.collection.error_data != undefined){
+        const sql_add = "INSERT INTO Post(Error, VK_ID) VALUES (?, ?);";
+        const post_data = [request.body.collection.error_data.error_reason.error_msg, request.body.id] // ?
+        connection.query(sql_add, post_data, function(error, results) {
+            if (error) {
+                console.log(error);
+            }
+            //console.log(results);
+        });
+    }
+    else {
+        for (let i = 0; i < request.body.collection.items.length; i++) {
+            let date = request.body.collection.items[i].date;
+            let datetime = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+            
+            let sql_add = "INSERT INTO Post(Post_VK_ID, VK_ID, Description, Likes, Reposts, Comments, Reply_Date";
+            let post_data = [request.body.collection.items[i].id, request.body.id, 
+                             request.body.collection.items[i].text,
+                             request.body.collection.items[i].likes.count,
+                             request.body.collection.items[i].reposts.count,
+                             request.body.collection.items[i].comments.count,
+                             datetime];
+            if (request.body.collection.items[i].views != undefined) {
+                sql_add = sql_add + ", Views";
+                post_data.push(request.body.collection.items[i].views.count);
+            }
+            if (request.body.collection.items[i].attachments != undefined) {
+                sql_add = sql_add + ", Attachments_Type";
+                post_data.push(request.body.collection.items[i].attachments[0].type);
+            }
+            sql_add = sql_add + ") VALUES (?"
+            for (let i = 1; i < post_data.length; i++) {
+                sql_add = sql_add + ", ?";
+            }
+            sql_add = sql_add + ");";
+
+            connection.query(sql_add, post_data, function(error, results) {
+                if (error) {
+                    console.log(error);
+                }
+                //console.log(results);
+            });
+        }
+    }
+
+    // Закрытие подключения
+    connection.end(function(error) {
+        if (error) {
+            return console.log("Ошибка: " + error.message);
+        }
+        console.log("Подключение закрыто");
+    });
+
+    response.end('It worked!');
 });
 
 app.listen(port);
