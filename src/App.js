@@ -1,6 +1,6 @@
 import { Panel, PanelHeader, Group, Cell, PanelHeaderBack, Button, FixedLayout } from '@vkontakte/vkui';
 import { ScreenSpinner, CellButton, Alert, Div, Separator } from '@vkontakte/vkui';
-import { Banner, InfoRow, Progress } from '@vkontakte/vkui';
+import { Banner, SimpleCell, Header, InfoRow, Progress } from '@vkontakte/vkui';
 
 import React from 'react';
 import bridge from '@vkontakte/vk-bridge';
@@ -35,7 +35,8 @@ class App extends React.Component {
 		testInformation: [],
 		testQuestion: [],
 		testAnswer: [],
-		userChoice: []
+		userChoice: [],
+		testResult: []
 
 	}
 
@@ -59,12 +60,52 @@ class App extends React.Component {
 
 	  this.getUserPost = this.getUserPost.bind(this);
 	  this.testAccess = this.testAccess.bind(this);
+
+	  this.sayServerDoResult = this.sayServerDoResult.bind(this); // отправка на сервер сигнала обработки и записи в бд результатов тестирования (person_answer -> result)
+	  this.sayServerUpdatePA = this.sayServerUpdatePA.bind(this); // обновление поля Result_ID в таблице Person_Answer 
+	  this.getTestResult = this.getTestResult.bind(this); // получение результатов тестирования
+
+	  this.showFactorClarification = this.showFactorClarification.bind(this); // Показ popout-a с описанием конкретного фактора
 	}
 
 	componentDidMount () {
 		//console.log("componentDidMount()");
+		this.getUserId();
 		this.getTestList();
 		this.getDonePercent();
+	}
+
+	getTestResult (test_id) {
+
+		// Получение результатов тестирования (get-result/:test_id?user_id=...)
+		if (this.state.testResult.length !== 0) {
+			this.state.testResult = [];
+			this.setState({});
+		}
+
+		let xhr = new XMLHttpRequest();
+		xhr.open('GET', `get-processed-result/${test_id}?user_id=232320646`, true);
+		xhr.responseType = 'json';
+		xhr.send();
+		xhr.onload = () => {
+			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
+				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
+			} 
+			else { // если всё прошло гладко, выводим результат
+				//console.log(xhr.response.results); // response -- это ответ сервера
+				
+				let inf_length = 0;
+			  	for (let i = 0; i < xhr.response.results.length; i++) {
+					this.state.testResult[inf_length] =  xhr.response.results[i];
+					inf_length++;
+					//this.setState({});
+			  	}
+			  	this.setState({});
+			}
+		};
+
+		console.log(this.state.testResult);
+
 	}
 
 	getTestList () {
@@ -94,7 +135,24 @@ class App extends React.Component {
 
 	getDonePercent () {
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', 'test-percent/1', true);
+
+		// Блокировка интерфейса до подгрузки данных с сервера
+		/* 
+		xhr.addEventListener('readystatechange', () => {
+			
+			if (xhr.readyState !== 4) {
+				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
+				this.setState({ popout: <ScreenSpinner /> });
+    			//setTimeout(() => { this.setState({ popout: null }) }, 15000);
+			}
+			if ((xhr.readyState == 4) && (xhr.status == 200)) {
+				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
+				this.closePopout();
+			}
+		});
+		*/
+
+		xhr.open('GET', 'test-percent?user_id=232320646', true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -136,7 +194,21 @@ class App extends React.Component {
 		}
 
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `test-information/${test_id}/1`, true);
+
+		xhr.addEventListener('readystatechange', () => {
+			
+			if (xhr.readyState !== 4) {
+				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
+				this.setState({ popout: <ScreenSpinner /> });
+    			//setTimeout(() => { this.setState({ popout: null }) }, 15000);
+			}
+			if ((xhr.readyState == 4) && (xhr.status == 200)) {
+				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
+				this.closePopout();
+			}
+		});
+
+		xhr.open('GET', `test-information/${test_id}?user_id=232320646`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -160,26 +232,42 @@ class App extends React.Component {
 	}
 
 	toNecessaryPanel (panel, test_id) {
-		this.getUserId();
 
+		// Отображаем название текущего теста
 		this.setState({ currentTestLable: this.state.testList[(test_id - 1) / 10].Name });
 
+		// Получаем информацию текущего теста
 		this.getInformation(test_id);
 
-		this.setState({ popout: <ScreenSpinner /> });
-    	setTimeout(() => { this.setState({ popout: null }) }, 1000);
+		// Получаем предыдущие результаты
+		this.getTestResult(test_id);
 
+		// Переходим на требуемую панель
 		this.setState({ activePanel: panel });
 	}
 	
 	postPersonAnswer (index) {
 		let data = JSON.stringify({
 									person_answer: this.state.testInformation[this.state.countquest].Answers[index].Answer_ID, 
-									id: 1 });//this.state.user_id });
+									id: 232320646 });//this.state.user_id });
         let xhr = new XMLHttpRequest();
 
-        // Посылаем запрос с данными на адрес "/person-answer"
-        xhr.open("POST", "/person-answer", true);   
+		xhr.addEventListener('readystatechange', () => {
+			
+			if (xhr.readyState !== 4) {
+				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
+				this.setState({ popout: <ScreenSpinner /> });
+    			//setTimeout(() => { this.setState({ popout: null }) }, 15000);
+			}
+			if ((xhr.readyState == 4) && (xhr.status == 200)) {
+				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
+				this.closePopout();
+			}
+		});
+
+		// Посылаем запрос с данными на адрес "/person-answer"
+        xhr.open("POST", "/person-answer", true);
+
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.send(data);
 	}
@@ -197,6 +285,8 @@ class App extends React.Component {
 
 	testActive () {
 		this.testAccess();
+		
+		// FIXME: Данный блок, вероятно, является излишним
 		if (this.state.countquest >= this.state.testInformation.length) {
 			this.setState({ countquest: 0, activePanel: 'questions' });
 		}
@@ -225,11 +315,42 @@ class App extends React.Component {
 			<p>Вы уверены, что хотите выйти? Ваши ответы могут не сохраниться.</p>
 		  </Alert>
 		});
-	  }
+	}
+
+	showFactorClarification (clari_text) {
+		if (clari_text == '') {
+			return;
+		}
+		else {
+			this.setState({ popout:
+				<Alert
+					actionsLayout="horizontal"
+					actions={[{
+					title: 'Ок',
+					autoclose: true,
+					mode: 'cancel'
+					}]}
+					onClose={this.closePopout}
+				>
+					<h2>Описание</h2>
+					<p>{clari_text}</p>
+				</Alert>
+			});
+		}
+	}
 
 	nextQuestion (index) {
 		// Отправка на сервер ответа пользователя на вопрос
 		this.postPersonAnswer(index);
+		
+		// Обновление количества отвеченных вопросов в текущем тесте
+		const abbr = this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10];
+		if (abbr.Question_Done_Count = abbr.Question_Count) {
+			this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count = 0;
+		}
+		else {
+			this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count++;
+		}
 
 		// Записываем в testInformation, что данный вопрос был отвечен
 		this.state.testInformation[this.state.countquest].isDone = 1;
@@ -238,6 +359,11 @@ class App extends React.Component {
 		// Переход к следующему вопросу
 		this.state.countquest++;
 		if (this.state.countquest >= this.state.testInformation.length) {
+			
+			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
+			this.sayServerUpdatePA(this.state.testInformation[0].Test_ID, 1);
+			this.getTestResult(this.state.testInformation[0].Test_ID);
+			this.state.countquest = 0;
 			this.setState({ activePanel: 'results' });
 			
 			// обработка результатов тестирования
@@ -245,6 +371,42 @@ class App extends React.Component {
 			return;
 		}
 		this.setState({});
+	}
+
+	sayServerDoResult (test_id) {
+
+		// GET-запрос на /do-result/:test_id?user_id=...
+		let xhr = new XMLHttpRequest();
+		xhr.open('GET', `do-result/${test_id}?user_id=232320646`, true);
+		xhr.responseType = 'json';
+		xhr.send();
+		xhr.onload = () => {
+			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
+				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
+			} 
+			else { // если всё прошло гладко, выводим результат
+				console.log(xhr.response.state); // response -- это ответ сервера
+			}
+		};
+
+	}
+
+	sayServerUpdatePA (test_id, result_id) {
+
+		// GET-запрос на /update-person-answer/:test_id?user_id=...&result_id=...
+		let xhr = new XMLHttpRequest();
+		xhr.open('GET', `update-person-answer/${test_id}?user_id=232320646&result_id=${result_id}`, true);
+		xhr.responseType = 'json';
+		xhr.send();
+		xhr.onload = () => {
+			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
+				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
+			} 
+			else { // если всё прошло гладко, выводим результат
+				console.log(xhr.response.state); // response -- это ответ сервера
+			}
+		};
+
 	}
 
 	getUserPost () {
@@ -257,7 +419,7 @@ class App extends React.Component {
 									"owner_id": this.state.user_id, 
 									"count": 100,
 									"v":"5.84", 
-									"access_token":"" // здесь необходимо вставить access_token приложения/пользователя
+									"access_token": "" // здесь необходимо вставить access_token приложения/пользователя
 								}
 					})
 			.then(data => {
@@ -313,9 +475,12 @@ class App extends React.Component {
 				{this.state.currentTestLable}
 			</PanelHeader>
 				<Div>
-	  				<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.testActive()}>Пройти тест</Button>
-					<Separator style={{ margin: '12px 0' }}/>
-					<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.setState({ activePanel: 'results' })}>Результаты тестирования</Button>
+					<Group>
+	  					<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.testActive()}>Пройти тест</Button>
+					</Group>
+					<Group>
+						<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.setState({ activePanel: 'results' })}>Результаты тестирования</Button>
+					</Group>
 				</Div>
 		  </Panel>
 		  
@@ -354,8 +519,38 @@ class App extends React.Component {
 		  	<PanelHeader left={<PanelHeaderBack onClick={() => this.setState({ activePanel: 'test-mainpage' })}/>}>
 				Результаты
 			</PanelHeader>
-			
-			{/* Отображение результатов тестирования */}
+			{this.state.testResult.length == 0 &&
+				<>
+					<Div>
+						Упс... Кажется, результатов пока нет. Давайте это исправим!😉
+					</Div>
+					<Div>
+						<Button size="xl" align="center" stretched mode="primary" onClick={() => this.testActive()}>Пройти тест</Button>
+					</Div>
+				</>
+			}
+			{this.state.testResult.length !== 0 &&
+				<>
+					<Div>
+						{this.state.testResult.map((ex, index) => (
+							<>
+								<Div>{ex.section_title}</Div>
+								<Div>{ex.section_explanation}</Div>
+								{ex.factors.map((ex_new, index_new) => (
+									<SimpleCell onClick={() => this.showFactorClarification(ex_new.clarification)} multiline key={index_new}>
+										<InfoRow header={ex_new.name}>
+											{ex_new.description}
+										</InfoRow>
+									</SimpleCell>
+								))
+								}
+								<Div><b>Дата последнего прохождения:</b> {(ex.reply_date.substr(8,2) + '.' + ex.reply_date.substr(5,2) + '.' + ex.reply_date.substr(0,4) + ' ' + ex.reply_date.substr(11,5) + ' UTC')}</Div>
+							</>
+							))
+						}
+					</Div>
+				</>
+			}
 		  
 		  </Panel>
 		</View>
