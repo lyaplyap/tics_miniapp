@@ -311,7 +311,7 @@ app.get("/get-processed-result/:test_id", function(request, response){
                 }
 
                 for (let i = 0; i < 16; i++) {
-                    if (kettell_processing_params[i].stan <= 3 && kettell_processing_params[i].stan >= 1) {
+                    if (kettell_processing_params[i].stan >= 1 && kettell_processing_params[i].stan <= 3) {
                         processed_data[0].factors[i] = {
                             name: kettell_processing_params[i].name,
                             description: kettell_processing_params[i].options[0],
