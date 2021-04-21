@@ -286,7 +286,7 @@ class App extends React.Component {
 	testActive () {
 		this.testAccess();
 		
-		// Данный блок, вероятно, является излишним
+		// FIXME: Данный блок, вероятно, является излишним
 		if (this.state.countquest >= this.state.testInformation.length) {
 			this.setState({ countquest: 0, activePanel: 'questions' });
 		}
