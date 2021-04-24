@@ -459,7 +459,7 @@ class App extends React.Component {
 						<Banner
 							key={ex.Test_ID}
 							header={ex.Name}
-							subheader={`Вы прошли этот тест на ${((ex.Question_Done_Count * 100) / ex.Question_Count).toFixed(2)}%.`}
+							subheader={`Вы прошли этот тест на ${isNaN((ex.Question_Done_Count * 100) / ex.Question_Count) ? '...' : ((ex.Question_Done_Count * 100) / ex.Question_Count).toFixed(2)}%.`}
 							asideMode="expand"
 							onClick={() => this.toNecessaryPanel('test-mainpage', ex.Test_ID)}
 					  	/>
