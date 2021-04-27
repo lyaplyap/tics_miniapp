@@ -15,7 +15,7 @@ class App extends React.Component {
 	  super(props);
   
 	  this.state = {
-		user_id: 0,
+		user_id: 232320646,
 
 		activePanel: 'panel0',
 		popout: null,
@@ -25,10 +25,7 @@ class App extends React.Component {
 
 		// Прототип теста
 		selectedOption: '',
-
 		countquest: 0,
-		flagtest: [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
-		old_flagtest: [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
 
 		currentTestLable: '',
 		testList: [],
@@ -43,6 +40,7 @@ class App extends React.Component {
 	  this.closePopout = this.closePopout.bind(this);
 	  this.addActionLogItem = this.addActionLogItem.bind(this);
 	  this.handleOptionChange = this.handleOptionChange.bind(this);
+	  
 	  
 	  // Психологическая защита (функции)
 	  this.nextQuestion = this.nextQuestion.bind(this);
@@ -84,7 +82,7 @@ class App extends React.Component {
 		}
 
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `get-processed-result/${test_id}?user_id=232320646`, true);
+		xhr.open('GET', `get-processed-result/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -98,9 +96,9 @@ class App extends React.Component {
 			  	for (let i = 0; i < xhr.response.results.length; i++) {
 					this.state.testResult[inf_length] =  xhr.response.results[i];
 					inf_length++;
-					//this.setState({});
+					this.setState({});
 			  	}
-			  	this.setState({});
+			  	//this.setState({});
 			}
 		};
 
@@ -152,7 +150,7 @@ class App extends React.Component {
 		});
 		*/
 
-		xhr.open('GET', 'test-percent?user_id=232320646', true);
+		xhr.open('GET', `test-percent?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -165,10 +163,10 @@ class App extends React.Component {
 						if (this.state.testList[i].Test_ID === xhr.response.results[j].Test_ID) {
 							this.state.testList[i].Question_Count = xhr.response.results[j].Question_Count;
 							this.state.testList[i].Question_Done_Count = Number(xhr.response.results[j].Question_Done_Count);
-							//this.setState({});
+							this.setState({});
 						}
 					}
-					this.setState({});
+					//this.setState({});
 				}
 			}
 		};
@@ -208,7 +206,7 @@ class App extends React.Component {
 			}
 		});
 
-		xhr.open('GET', `test-information/${test_id}?user_id=232320646`, true);
+		xhr.open('GET', `test-information/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -249,7 +247,7 @@ class App extends React.Component {
 	postPersonAnswer (index) {
 		let data = JSON.stringify({
 									person_answer: this.state.testInformation[this.state.countquest].Answers[index].Answer_ID, 
-									id: 232320646 });//this.state.user_id });
+									id: this.state.user_id });
         let xhr = new XMLHttpRequest();
 
 		xhr.addEventListener('readystatechange', () => {
@@ -345,7 +343,7 @@ class App extends React.Component {
 		
 		// Обновление количества отвеченных вопросов в текущем тесте
 		const abbr = this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10];
-		if (abbr.Question_Done_Count = abbr.Question_Count) {
+		if (abbr.Question_Done_Count == abbr.Question_Count) {
 			this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count = 0;
 		}
 		else {
@@ -364,6 +362,7 @@ class App extends React.Component {
 			this.sayServerUpdatePA(this.state.testInformation[0].Test_ID, 1);
 			this.getTestResult(this.state.testInformation[0].Test_ID);
 			this.state.countquest = 0;
+			this.setState({});
 			this.setState({ activePanel: 'results' });
 			
 			// обработка результатов тестирования
@@ -377,7 +376,7 @@ class App extends React.Component {
 
 		// GET-запрос на /do-result/:test_id?user_id=...
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `do-result/${test_id}?user_id=232320646`, true);
+		xhr.open('GET', `do-result/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -395,7 +394,7 @@ class App extends React.Component {
 
 		// GET-запрос на /update-person-answer/:test_id?user_id=...&result_id=...
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `update-person-answer/${test_id}?user_id=232320646&result_id=${result_id}`, true);
+		xhr.open('GET', `update-person-answer/${test_id}?user_id=${this.state.user_id}&result_id=${result_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -460,7 +459,7 @@ class App extends React.Component {
 						<Banner
 							key={ex.Test_ID}
 							header={ex.Name}
-							subheader={`Вы прошли этот тест на ${((ex.Question_Done_Count * 100) / ex.Question_Count).toFixed(2)}%.`}
+							subheader={`Вы прошли этот тест на ${isNaN((ex.Question_Done_Count * 100) / ex.Question_Count) ? '...' : ((ex.Question_Done_Count * 100) / ex.Question_Count).toFixed(2)}%.`}
 							asideMode="expand"
 							onClick={() => this.toNecessaryPanel('test-mainpage', ex.Test_ID)}
 					  	/>
@@ -475,12 +474,18 @@ class App extends React.Component {
 				{this.state.currentTestLable}
 			</PanelHeader>
 				<Div>
-					<Group>
-	  					<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.testActive()}>Пройти тест</Button>
-					</Group>
-					<Group>
-						<Button size="xl" align="center" stretched mode="secondary" onClick={() => this.setState({ activePanel: 'results' })}>Результаты тестирования</Button>
-					</Group>
+					<Banner
+						header='Пройти тест'
+						//subheader=''
+						asideMode="expand"
+						onClick={() => this.testActive()}
+					/>
+					<Banner
+						header='Результаты'
+						//subheader=''
+						asideMode="expand"
+						onClick={() => this.setState({ activePanel: 'results' })}
+					/>
 				</Div>
 		  </Panel>
 		  
@@ -533,8 +538,8 @@ class App extends React.Component {
 				<>
 					<Div>
 						{this.state.testResult.map((ex, index) => (
-							<>
-								<Div>{ex.section_title}</Div>
+							<Group>
+								<Div><b>{ex.section_title}</b></Div>
 								<Div>{ex.section_explanation}</Div>
 								{ex.factors.map((ex_new, index_new) => (
 									<SimpleCell onClick={() => this.showFactorClarification(ex_new.clarification)} multiline key={index_new}>
@@ -544,14 +549,13 @@ class App extends React.Component {
 									</SimpleCell>
 								))
 								}
-								<Div><b>Дата последнего прохождения:</b> {(ex.reply_date.substr(8,2) + '.' + ex.reply_date.substr(5,2) + '.' + ex.reply_date.substr(0,4) + ' ' + ex.reply_date.substr(11,5) + ' UTC')}</Div>
-							</>
+							</Group>
 							))
 						}
 					</Div>
+					<Div><b>Дата последнего прохождения:</b> {(this.state.testResult[0].reply_date.substr(8,2) + '.' + this.state.testResult[0].reply_date.substr(5,2) + '.' + this.state.testResult[0].reply_date.substr(0,4) + ' ' + this.state.testResult[0].reply_date.substr(11,5) + ' UTC')}</Div>
 				</>
 			}
-		  
 		  </Panel>
 		</View>
 	  )
