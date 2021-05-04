@@ -1109,13 +1109,33 @@ app.get("/test-percent", function(request, response){
         password: ""
     });
 
-    const sql_zero = `SELECT COUNT(Question_ID) as Question_Count, Test_ID, SUM(CountNotNull) as Question_Done_Count 
-                        FROM (SELECT a.Question_ID, q.Test_ID, COUNT(pa.VK_ID) as CountNotNull
-                                FROM answer as a 
-                                INNER JOIN question as q ON a.question_id = q.question_id
-                                LEFT JOIN (SELECT * FROM person_answer WHERE vk_id = ${request.query.user_id} AND result_id = 0) as pa ON pa.answer_id = a.answer_id
-                                GROUP BY q.Question_ID) as NewT
-                                    GROUP BY Test_ID;`;
+    const sql_zero = `SELECT * FROM 
+                        (SELECT NDRT.Question_Count, NDRT.Test_ID, NDRT.Question_Done_Count 
+                        FROM (SELECT COUNT(Question_ID) as Question_Count, Test_ID, SUM(CountNotNull) as Question_Done_Count 
+                            FROM (SELECT a.Question_ID, q.Test_ID, COUNT(pa.VK_ID) as CountNotNull
+                                FROM answer as a
+                                    INNER JOIN question as q ON a.question_id = q.question_id
+                                    LEFT JOIN (SELECT * FROM person_answer WHERE vk_id = ${request.query.user_id} AND result_id = 0) as pa ON pa.answer_id = a.answer_id
+                                        GROUP BY q.Question_ID) as NewT
+                                            GROUP BY Test_ID) AS NDRT, Test AS T
+                                            WHERE NDRT.Test_ID = T.Test_ID AND T.Mode = 'single'
+                        UNION
+                        SELECT COUNT(NDDT.Question_ID) AS Question_Count, NDDT.Test_ID AS Test_ID, COUNT(PMA.Question_ID) AS Question_Done_Count
+                        FROM (SELECT Q.Question_ID, T.Test_ID FROM Question AS Q, Test AS T 
+                            WHERE Q.Test_ID = T.Test_ID AND T.Mode = 'multiple'
+                            GROUP BY Q.Question_ID) AS NDDT
+                                LEFT JOIN (SELECT Question_ID FROM Person_MultiAnswer WHERE VK_ID = ${request.query.user_id} AND Status = 0 GROUP BY Question_ID) 
+                                    AS PMA ON PMA.Question_ID = NDDT.Question_ID
+                                        GROUP BY NDDT.Test_ID) AS KKJD
+                                            ORDER BY Test_ID;`;
+    
+    //`SELECT COUNT(Question_ID) as Question_Count, Test_ID, SUM(CountNotNull) as Question_Done_Count 
+    //                    FROM (SELECT a.Question_ID, q.Test_ID, COUNT(pa.VK_ID) as CountNotNull
+    //                            FROM answer as a 
+    //                            INNER JOIN question as q ON a.question_id = q.question_id
+    //                            LEFT JOIN (SELECT * FROM person_answer WHERE vk_id = ${request.query.user_id} AND result_id = 0) as pa ON pa.answer_id = a.answer_id
+    //                            GROUP BY q.Question_ID) as NewT
+    //                                GROUP BY Test_ID;`;
        
     connection.query(sql_zero, function(error, results) {
         if (error)
