@@ -2,7 +2,7 @@ import { Panel, PanelHeader, Group, Cell, PanelHeaderBack, Button, FixedLayout, 
 import { ScreenSpinner, CellButton, Alert, Div, Separator } from '@vkontakte/vkui';
 import { Banner, SimpleCell, Header, InfoRow, Progress, PanelHeaderContent } from '@vkontakte/vkui';
 import { ModalRoot, ModalPage, ModalPageHeader, ModalRootContext, ModalCard, PanelHeaderClose, PanelHeaderSubmit } from '@vkontakte/vkui';
-import { Checkbox } from '@vkontakte/vkui';
+import { Checkbox, FormLayout, Input } from '@vkontakte/vkui';
 
 import React from 'react';
 import bridge from '@vkontakte/vk-bridge';
@@ -18,7 +18,7 @@ class App extends React.Component {
 	  this.state = {
 		
 		// Пользовательские параметры
-		user_id: 1, 		// VK ID пользователя
+		user_id: 1, // VK ID пользователя
 		user_token: '',		// VK Token пользователя
 
 		// Информация о тесте/тестах
@@ -37,8 +37,11 @@ class App extends React.Component {
 		activeModal: null,		// Активная модальная страница
 		countquest: 0,			// Номер текущего вопроса
 
-		// Тестим чекбоксы
+		lastQuestionIsAnswered: 0,
+
+		// Параметры для ралзличных типов ответа
 		selectedAnswers: [],	// Выбранные ответы (массив чекбоксов/друзей)
+		inputLabels: [],		// Введённые ответы
 
 		// FIXES: Вероятно, удаляем
 		userChoice: [],
@@ -58,7 +61,6 @@ class App extends React.Component {
 	  this.getTestList = this.getTestList.bind(this); 				// Получение коллекции всех тестов
 	  this.getDonePercent = this.getDonePercent.bind(this); 		// Получение процентов отвеченных вопросов
 	  this.getInformation = this.getInformation.bind(this); 		// Получение коллекции с информацией о выбранном тесте
-	  this.getMultiAnswers = this.getMultiAnswers.bind(this);		// Получение информации о предыдущих ответах в мульти-тесте
 	  this.getTestResult = this.getTestResult.bind(this); 			// Получение итоговых результатов по выбранному тесту
 	  this.getTestInstruction = this.getTestInstruction.bind(this); // Получение инструкции к выбранному тесту
 
@@ -68,13 +70,12 @@ class App extends React.Component {
 
 	  // Функции-обработчики
 	  this.sayServerDoResult = this.sayServerDoResult.bind(this);	// Отправка на сервер сигнала для формирования в БД результатов тестирования (Person_Answer -> Result)
-	  this.sayServerUpdatePA = this.sayServerUpdatePA.bind(this); 	// Отправка на сервер сигнала о смене статуса ответов пользователя на "обработанные" в Person_Answer
-	  this.sayServerUpdatePMA = this.sayServerUpdatePMA.bind(this);	// Отправка на сервер сигнала о смене статуса ответов пользователя на "итоговые" в Person_MultiAnswer 
+	  this.sayServerUpdate = this.sayServerUpdate.bind(this); 		// Отправка на сервер сигнала о смене статуса ответов пользователя на "обработанные" в Person_Answer и Person_MultiAnswer 
 	  this.checkPostExists = this.checkPostExists.bind(this); 	  	// Проверка на присутствие постов пользователя в таблице Post
 
 	  // Функции клиента
 	  // (логика теста) 
-	  this.nextQuestion = this.nextQuestion.bind(this);			// Переход к следующему вопросу теста или к результатам
+	  this.nextQuestion = this.nextQuestion.bind(this);			// Переход к следующему вопросу теста или к результатам через кнопку
 	  this.testActive = this.testActive.bind(this);				// Начало/продолжение тестирования из меню теста
 	  this.toNecessaryPanel = this.toNecessaryPanel.bind(this); // Переход в меню выбранного теста
 	  this.testAccess = this.testAccess.bind(this);				// Присвоение countquest номера первого неотвеченного вопроса
@@ -83,11 +84,14 @@ class App extends React.Component {
 	  this.closePopout = this.closePopout.bind(this);						  // Закрытие popout-элемента
 	  this.showFactorClarification = this.showFactorClarification.bind(this); // Вызов popout-элемента с описанием выбранного фактора
 	  this.setActiveModal = this.setActiveModal.bind(this); 				  // Открытие/закрытие модального окна с инструкцией
+	  // (кнопки вперёд-назад)
+	  this.goForward = this.goForward.bind(this);	// Вперёд по тесту
+	  this.goBack = this.goBack.bind(this);			// Назад по тесту
 
-	  // Тестируем чекбоксы
-	  this.nextCheckbox = this.nextCheckbox.bind(this);
-	  this.backCheckbox = this.backCheckbox.bind(this);
-	  this.chooseBox = this.chooseBox.bind(this);
+	  // Функционал различных типов ответа на вопрос
+	  this.chooseBox = this.chooseBox.bind(this);					// Чекбоксы с выбором множества вариантов
+	  this.inputHandleSubmit = this.inputHandleSubmit.bind(this);	// Ввод значения из инпута
+	  this.inputHandleChange = this.inputHandleChange.bind(this);	// Динамическое изменение значения в инпуте
 	}
 
 	// Инициализация клиента
@@ -239,61 +243,10 @@ class App extends React.Component {
 					//this.setState({});
 			  	}
 				this.setState({});
-				
-				if (this.state.testList[(test_id - 1)/10].Mode == 'multiple') {
-					this.getMultiAnswers(test_id);
-				}
 			}
 		};
 
 		console.log(this.state.testInformation);
-	}
-
-	getMultiAnswers (test_id) {
-		
-		let xhr = new XMLHttpRequest();
-
-		xhr.addEventListener('readystatechange', () => {
-			
-			if (xhr.readyState !== 4) {
-				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-				this.setState({ popout: <ScreenSpinner /> });
-    			//setTimeout(() => { this.setState({ popout: null }) }, 15000);
-			}
-			if ((xhr.readyState == 4) && (xhr.status == 200)) {
-				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-				this.closePopout();
-			}
-		});
-
-		xhr.open('GET', `multi-answers/${test_id}?user_id=${this.state.user_id}`, true);
-		xhr.responseType = 'json';
-		xhr.send();
-		xhr.onload = () => {
-			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
-				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
-			} 
-			else { // если всё прошло гладко, выводим результат
-				console.log(xhr.response.results); // response -- это ответ сервера
-				let results = xhr.response.results;
-
-				for (let i = 0; i < this.state.testInformation.length; i++) {
-					let isIncludes = results.findIndex(item => item.Question_ID == this.state.testInformation[i].Question_ID);
-					
-					if (isIncludes == -1) {
-						this.state.testInformation[i].Prev_Answers = [];
-					}
-					else {
-						this.state.testInformation[i].isDone = 1;
-						this.state.testInformation[i].Prev_Answers = results[isIncludes].Prev_Answers;
-					}
-				}
-				this.setState({});
-
-				console.log(this.state.testInformation);
-			}
-		};
-
 	}
 
 	getTestResult (test_id) {
@@ -319,7 +272,7 @@ class App extends React.Component {
 			}
 		});
 
-		xhr.open('GET', `get-processed-result/${test_id}?user_id=${this.state.user_id}&mode=${this.state.testList[(test_id - 1)/10].Mode}`, true);
+		xhr.open('GET', `get-processed-result/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -377,21 +330,24 @@ class App extends React.Component {
 	
 	// Функции, что-то отправляющие с помощью POST-запроса на сервер
 
-	postPersonAnswer (index) {
+	postPersonAnswer (index, question_count) {
 		let data = JSON.stringify({});
-		if (this.state.testInformation[this.state.countquest].Type == 'button') {
+		if (this.state.testInformation[question_count].Mode == 'single') {
 			data = JSON.stringify({
-										person_answer: this.state.testInformation[this.state.countquest].Answers[index].Answer_ID, 
+										person_answer: this.state.testInformation[question_count].Answers[index].Answer_ID, 
 										id: this.state.user_id,
-										question_type: this.state.testInformation[this.state.countquest].Type
+										question_type: this.state.testInformation[question_count].Type,
+										question_mode: this.state.testInformation[question_count].Mode,
+										question_id: this.state.testInformation[question_count].Question_ID
 									});
 		}
-		else if (this.state.testInformation[this.state.countquest].Type == 'checkbox') {
+		else if (this.state.testInformation[question_count].Mode == 'multiple') {
 			data = JSON.stringify({
 										person_answers: this.state.selectedAnswers,
 										id: this.state.user_id,
-										question_type: this.state.testInformation[this.state.countquest].Type,
-										question_id: this.state.testInformation[this.state.countquest].Question_ID
+										question_type: this.state.testInformation[question_count].Type,
+										question_id: this.state.testInformation[question_count].Question_ID,
+										question_mode: this.state.testInformation[question_count].Mode
 									});
 		}
 
@@ -526,17 +482,12 @@ class App extends React.Component {
 			else { // если всё прошло гладко, выводим результат
 				console.log(xhr.response.state); // response -- это ответ сервера
 				
-				if (this.state.testList[(test_id - 1)/10].Mode == 'single') {
-					this.sayServerUpdatePA(test_id, 1);
-				}
-				else if (this.state.testList[(test_id - 1)/10].Mode == 'multiple') {
-					this.sayServerUpdatePMA(test_id);
-				}
+				this.sayServerUpdate(test_id, 1);
 			}
 		};
 	}
 
-	sayServerUpdatePA (test_id, result_id) {
+	sayServerUpdate (test_id, result_id) {
 
 		// GET-запрос на /update-person-answer/:test_id?user_id=...&result_id=...
 		let xhr = new XMLHttpRequest();
@@ -550,25 +501,6 @@ class App extends React.Component {
 			else { // если всё прошло гладко, выводим результат
 				console.log(xhr.response.state); // response -- это ответ сервера
 					
-				this.getTestResult(test_id);
-			}
-		};
-	}
-
-	sayServerUpdatePMA (test_id) {
-
-		// GET-запрос на /update-person-multianswer/:test_id?user_id=...
-		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `update-person-multianswer/${test_id}?user_id=${this.state.user_id}`, true);
-		xhr.responseType = 'json';
-		xhr.send();
-		xhr.onload = () => {
-			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
-				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
-			} 
-			else { // если всё прошло гладко, выводим результат
-				console.log(xhr.response.state); // response -- это ответ сервера
-				
 				this.getTestResult(test_id);
 			}
 		};
@@ -598,32 +530,40 @@ class App extends React.Component {
 
 	nextQuestion (index) {
 		// Отправка на сервер ответа пользователя на вопрос
-		this.postPersonAnswer(index);
+		this.postPersonAnswer(index, this.state.countquest);
 		
 		// Обновление количества отвеченных вопросов в текущем тесте
-		const abbr = this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10];
-		if (abbr.Question_Done_Count == abbr.Question_Count) {
-			this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count = 0;
+		if (this.state.testInformation[this.state.countquest].isDone == 0) {
+			const abbr = this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10];
+			if (abbr.Question_Done_Count == abbr.Question_Count) {
+				this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count = 0;
+			}
+			else {
+				this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count++;
+			}
+
+			// Записываем в testInformation, что данный вопрос был отвечен
+			this.state.testInformation[this.state.countquest].isDone = 1;
+			this.state.testInformation[this.state.countquest].Prev_Answers.push(this.state.testInformation[this.state.countquest].Answers[index].Description);
+			this.setState({});
 		}
-		else {
-			this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count++;
+		else if (this.state.testInformation[this.state.countquest].isDone == 1) {
+			this.state.testInformation[this.state.countquest].Prev_Answers[0] = this.state.testInformation[this.state.countquest].Answers[index].Description;
+			this.setState({});
 		}
 
-		// Записываем в testInformation, что данный вопрос был отвечен
-		this.state.testInformation[this.state.countquest].isDone = 1;
-		this.setState({});
 		
 		// Переход к следующему вопросу
 		this.state.countquest++;
+		this.setState({});
+
 		if (this.state.countquest >= this.state.testInformation.length) {
 			
 			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
 			
 			this.setState({ countquest: 0, activePanel: 'results' });
 			this.postUserPost();
-			return;
 		}
-		this.setState({});
 	}
 
 	testActive () {
@@ -731,77 +671,108 @@ class App extends React.Component {
 	}
 
 
-	// Тестируем чекбоксы
+	// Функции клиента (кнопки вперёд-назад)
 
-	nextCheckbox () {
-		// Пользователь отвечал ранее на текущий вопрос, но сейчас пропускает его
-		if (this.state.testInformation[this.state.countquest].isDone == 1 && this.state.selectedAnswers.length == 0) {
+	goForward () {
+		// Если режим текущего вопроса - single
+		if (this.state.testInformation[this.state.countquest].Mode === 'single') {
+
+			// Пользователь отвечал ранее на текущий вопрос, но сейчас пропускает его
+			if (this.state.testInformation[this.state.countquest].isDone === 1) {
+				
+				this.state.countquest++;
+				this.setState({});	
 			
-			this.state.selectedAnswers = [];
+			}
 			
-			this.state.countquest++;
-			this.setState({});	
 		}
-		// Пользователь отвечал ранее на текущий вопрос и сейчас отвечает заново
-		else if (this.state.testInformation[this.state.countquest].isDone == 1 && this.state.selectedAnswers.length != 0) {
-			
-			// Отправка нового ответа
-			this.postPersonAnswer(0);
+		// Если режим текущего вопроса - multiple
+		else if (this.state.testInformation[this.state.countquest].Mode === 'multiple') {
 
-			for (let i = 0; i < this.state.selectedAnswers.length; i++) {
-				this.state.testInformation[this.state.countquest].Prev_Answers[i] = this.state.selectedAnswers[i];
+			// Если тип ответов был checkbox-input или input
+			if ((this.state.testInformation[this.state.countquest].Type === 'checkbox-input' || 
+				this.state.testInformation[this.state.countquest].Type === 'input') && 
+				this.state.inputLabels.length !== 0) {
+				for (let i = 0; i < this.state.inputLabels.length; i++) {
+					if (this.state.inputLabels[i]) {
+						this.state.selectedAnswers.push(this.state.inputLabels[i]);
+					}
+				}
+				this.setState({});
 			}
 
-			this.state.selectedAnswers = [];
-			this.state.countquest++;
-			this.setState({});
-		}
-		// Пользователь не отвечал ранее на текущий вопрос
-		else if (this.state.testInformation[this.state.countquest].isDone == 0 && this.state.selectedAnswers.length != 0) {
-			
-			// Отправка ответа (первого)
-			this.postPersonAnswer(0); 
-			
-			const abbr = this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10];
-			if (abbr.Question_Done_Count == abbr.Question_Count) {
-				this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count = 0;
+			// Пользователь не отвечал ранее на текущий вопрос
+			if (this.state.testInformation[this.state.countquest].isDone === 0 && this.state.selectedAnswers.length !== 0) {
+				
+				// Отправка ответа (первого)
+				this.postPersonAnswer(0, this.state.countquest); 
+				
+				const abbr = this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10];
+				if (abbr.Question_Done_Count === abbr.Question_Count) {
+					this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count = 0;
+				}
+				else {
+					this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count++;
+				}
+
+				// Записываем в testInformation, что данный вопрос был отвечен
+				this.state.testInformation[this.state.countquest].isDone = 1;
+
+				for (let i = 0; i < this.state.selectedAnswers.length; i++) {
+					this.state.testInformation[this.state.countquest].Prev_Answers[i] = this.state.selectedAnswers[i];
+				}
+
+				this.state.selectedAnswers = [];
+				this.state.inputLabels = [];
+
+				this.state.countquest++;
+				this.setState({});
 			}
-			else {
-				this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Question_Done_Count++;
+			// Пользователь отвечал ранее на текущий вопрос, но сейчас пропускает его
+			else if (this.state.testInformation[this.state.countquest].isDone === 1 && this.state.selectedAnswers.length === 0) {
+				
+				this.state.countquest++;
+				this.setState({});	
 			}
+			// Пользователь отвечал ранее на текущий вопрос и сейчас отвечает заново
+			else if (this.state.testInformation[this.state.countquest].isDone == 1 && this.state.selectedAnswers.length != 0) {
+				
+				// Отправка нового ответа
+				this.postPersonAnswer(0, this.state.countquest);
 
-			// Записываем в testInformation, что данный вопрос был отвечен
-			this.state.testInformation[this.state.countquest].isDone = 1;
+				for (let i = 0; i < this.state.selectedAnswers.length; i++) {
+					this.state.testInformation[this.state.countquest].Prev_Answers[i] = this.state.selectedAnswers[i];
+				}
 
-			for (let i = 0; i < this.state.selectedAnswers.length; i++) {
-				this.state.testInformation[this.state.countquest].Prev_Answers[i] = this.state.selectedAnswers[i];
+				this.state.selectedAnswers = [];
+				this.state.inputLabels = [];
+				this.state.countquest++;
+				this.setState({});
 			}
-
-			this.state.selectedAnswers = [];
-
-			this.state.countquest++;
-			this.setState({});
 		}
 
 		// Если тест закончился
 		if (this.state.countquest >= this.state.testInformation.length) {
-			
+				
 			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
 			
-			this.setState({ countquest: 0, activePanel: 'results', selectedAnswers: [] });
+			this.setState({ countquest: 0, activePanel: 'results', selectedAnswers: [], inputLabels: [] });
 			this.postUserPost();
-			return;
 		}
 	}
 
-	backCheckbox () {
+	goBack () {
 		if (this.state.countquest != 0)
 		{
 			this.state.selectedAnswers = [];
+			this.state.inputLabels = [];
 			this.state.countquest--;
 			this.setState({});
 		}
 	}
+
+
+	// Функционал различных типов ответа на вопрос
 
 	chooseBox (description) {
 		let flag = 0;
@@ -819,6 +790,30 @@ class App extends React.Component {
 		}
 
 		console.log(this.state.selectedAnswers);
+	}
+
+	inputHandleChange (e) {
+		const { name, value } = e.currentTarget;
+		
+		this.state.inputLabels[Number([name])] = value;
+		this.setState({});
+	}
+
+	inputHandleSubmit (e) {
+		const { name, value } = e.currentTarget;
+
+		const index = Number([name]);
+		this.setState({ inputLabels: 
+			[
+				...this.state.inputLabels.slice(0, index),
+				value,
+				...this.state.inputLabels.slice(index + 1)
+			]
+		});
+
+		e.preventDefault();
+	
+		console.log(this.state.inputLabels);
 	}
 
   
@@ -937,6 +932,13 @@ class App extends React.Component {
 								</Group>
 							))
 						}
+						<Div/>
+						{this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1 &&
+							<>
+							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
+							<p/>
+							</>
+						}
 						</>
 						}
 						{this.state.testInformation[this.state.countquest].Type == 'checkbox' &&
@@ -952,9 +954,67 @@ class App extends React.Component {
 							))
 						}
 						<Div/>
-						<Button size="xl" stretched mode="primary" onClick={() => this.nextCheckbox()}>Вперёд</Button>
-						<p/>
-						<Button size="xl" stretched mode="primary" onClick={() => this.backCheckbox()}>Назад</Button>
+							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
+							<p/>
+						</>
+						}
+						{this.state.testInformation[this.state.countquest].Type == 'checkbox-input' &&
+						<>
+						{
+							this.state.testInformation[this.state.countquest].Answers.map((ex, index) => (
+								<Group key={index}>
+									{index !== (this.state.testInformation[this.state.countquest].Answers.length - 1) &&
+									<Checkbox onClick={() => this.chooseBox(ex.Description)} 
+											  checked={this.state.selectedAnswers.includes(ex.Description)}>
+										{ex.Description}
+									</Checkbox>
+									}
+									{index === (this.state.testInformation[this.state.countquest].Answers.length - 1) &&
+									<>
+									<Div>{ex.Description}</Div>
+									<FormLayout onSubmit={this.inputHandleSubmit}>
+										<Input
+											type="text"
+											name="1"
+											value={this.state.inputLabels[1]}
+											onChange={this.inputHandleChange}
+										/>
+									</FormLayout>
+									</>
+									}
+								</Group>
+							))
+						}
+						<Div/>
+							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
+							<p/>
+						</>
+						}
+						{this.state.testInformation[this.state.countquest].Type == 'input' &&
+						<>
+						{
+							this.state.testInformation[this.state.countquest].Answers.map((ex, index) => (
+								<Group key={index}>
+									<Div>{ex.Description}</Div>
+									<FormLayout onSubmit={this.inputHandleSubmit}>
+										<Input
+											type="text"
+											name={String(index + 1)}
+											value={this.state.inputLabels[index + 1]}
+											onChange={this.inputHandleChange}
+										/>
+									</FormLayout>
+								</Group>
+							))
+						}
+						<Div/>
+							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
+							<p/>
+						</>
+						}
+						{this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1 &&
+						<>
+							<Button size="xl" stretched mode="primary" onClick={() => this.goBack()}>Назад</Button>
 						</>
 						}
 					</Div>

@@ -2527,6 +2527,38 @@ UPDATE Test SET Mode = 'single' WHERE Test_ID < 41;
 UPDATE Test SET Mode = 'multiple' WHERE Test_ID = 41;
 
 
+-- Добавление "режима ответов" к вопросам
+ALTER TABLE Question ADD COLUMN A_Mode VARCHAR(8);
+UPDATE Question SET A_Mode = 'single' WHERE Question_ID < 4561;
+UPDATE Question SET A_Mode = 'multiple' WHERE Question_ID >= 4561;
+
+ALTER TABLE Test DROP COLUMN Mode;
+ALTER TABLE Test ADD COLUMN CanRedo INTEGER DEFAULT 0;
+UPDATE Test SET CanRedo = 0 WHERE Test_ID < 41;
+UPDATE Test Set CanRedo = 1 WHERE Test_ID = 41;
+
+-- Добавление input-элементов
+UPDATE Question SET Type = 'checkbox-input' WHERE Question_ID >= 4561;
+DELETE FROM Answer WHERE Question_ID = 4571;
+INSERT INTO Answer (Answer_ID, Question_ID, Description, Value) VALUES
+(18891, 4561, 'Другое', 0),
+(18901, 4571, 'ВКонтакте', 0),
+(18911, 4571, 'Telegram', 0),
+(18921, 4571, 'WhatsApp', 0),
+(18931, 4571, 'Viber', 0),
+(18941, 4571, 'Instagram', 0),
+(18951, 4571, 'Одноклассники', 0),
+(18961, 4571, 'Звоню по телефону', 0),
+(18971, 4571, 'Другое', 0);
+
+INSERT INTO Question (Question_ID, Test_ID, Description, Category, Type, A_Mode) VALUES
+(4581, 41, 'Укажите, пожалуйста, при наличии ссылки на свои профили в:', 'none', 'input', 'multiple');
+INSERT INTO Answer (Answer_ID, Question_ID, Description, Value) VALUES
+(18981, 4581, 'Instagram (пример ввода: @dscs.pro)', 0),
+(18991, 4581, 'Одноклассниках (пример ввода: ok.ru/profile/1)', 0);
+
+
+
 -- DROP TABLE Post;
 -- DROP TABLE Result;
 -- DROP TABLE Person_Answer;
