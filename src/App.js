@@ -932,13 +932,6 @@ class App extends React.Component {
 								</Group>
 							))
 						}
-						<Div/>
-						{this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1 &&
-							<>
-							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
-							<p/>
-							</>
-						}
 						</>
 						}
 						{this.state.testInformation[this.state.countquest].Type == 'checkbox' &&
@@ -953,9 +946,6 @@ class App extends React.Component {
 								</Group>
 							))
 						}
-						<Div/>
-							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
-							<p/>
 						</>
 						}
 						{this.state.testInformation[this.state.countquest].Type == 'checkbox-input' &&
@@ -985,9 +975,6 @@ class App extends React.Component {
 								</Group>
 							))
 						}
-						<Div/>
-							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
-							<p/>
 						</>
 						}
 						{this.state.testInformation[this.state.countquest].Type == 'input' &&
@@ -1007,7 +994,12 @@ class App extends React.Component {
 								</Group>
 							))
 						}
-						<Div/>
+						</>
+						}
+						{( this.state.testInformation[this.state.countquest].Type != 'button' ||
+						   this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1 ) &&
+						<>
+							<Div/>
 							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
 							<p/>
 						</>
@@ -1022,7 +1014,6 @@ class App extends React.Component {
 				{/*</FixedLayout>*/}
 	  		</Group>
 		  </Panel>
-
 
 		  <Panel id="results">
 		  	<PanelHeader left={<PanelHeaderBack onClick={() => this.setState({ activePanel: 'test-mainpage' })}/>}>
