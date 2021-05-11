@@ -906,8 +906,8 @@ class App extends React.Component {
 				// Обработка ошибки вызова или отказа от добавления друзей
 			})
 		
-		this.state.selectedAnswers[index] = `Friend #${index + 1}`;
-		this.setState({});
+		//this.state.selectedAnswers[index] = `Friend #${index + 1}`;
+		//this.setState({});
 	}
 
   
