@@ -26,6 +26,36 @@ app.get('/ping', function (req, res) {
 });
 
 
+// "Авторизация" пользователя в БД
+app.get("/user-db-auth", function(request, response){
+    
+    const connection = mysql.createConnection({
+        host: DB_HOST,
+        user: DB_USER,
+        database: DB_NAME,
+        password: DB_PASSWORD
+    });
+
+    const sql_zero = `CALL F_UserAuth(${request.query.user_id});`;
+       
+    connection.query(sql_zero, function(error, results) {
+        if (error) {
+            console.log(error);
+        }
+        else {
+            response.setHeader('Content-Type', 'application/json');
+            response.send(JSON.stringify({ results: 'auth success' }));
+        }
+    });
+
+    connection.end(function(error) {
+        if (error) {
+            return console.log("Ошибка: " + error.message);
+        }
+        console.log("Подключение закрыто");
+    });
+});
+
 // Получение инструкции к тесту
 app.get("/get-instruction/:test_id", function(request, response){
     
@@ -955,40 +985,6 @@ app.get("/get-result/:test_id", function(request, response){
     });
 });
 
-// FIXES: В дальнейшем удалить
-// Обновление Status в Person_MultiAnswer
-app.get("/update-person-multianswer/:test_id", function(request, response){
-    
-    const connection = mysql.createConnection({
-        host: DB_HOST,
-        user: DB_USER,
-        database: DB_NAME,
-        password: DB_PASSWORD
-    });
-
-    const sql_zero = `UPDATE Person_MultiAnswer SET Status = 1 
-                                WHERE Question_ID IN (SELECT NT.Question_ID FROM (SELECT PMA.Question_ID FROM Person_MultiAnswer AS PMA, Question AS Q 
-                                    WHERE PMA.Question_ID =  Q.Question_ID AND Test_ID = ${request.params.test_id}
-                                    GROUP BY PMA.Question_ID) AS NT)
-                                        AND VK_ID = ${request.query.user_id} AND Status = 0;`;
-       
-    connection.query(sql_zero, function(error, results) {
-        if (error)
-            console.log(error);
-        else {
-            response.setHeader('Content-Type', 'application/json');
-            response.send(JSON.stringify({ state: 'update person_multianswer ok!' }));
-        }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
-    });
-});
-
 // Обновление Result_ID в Person_Answer и Person_MultiAnswer
 app.get("/update-person-answer/:test_id", function(request, response){
     
@@ -1094,8 +1090,9 @@ app.get("/test-list", function(request, response){
     const sql_zero = `SELECT * FROM Test;`;
        
     connection.query(sql_zero, function(error, results) {
-        if (error)
+        if (error) {
             console.log(error);
+        }
         else {
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: results }));
@@ -1162,7 +1159,7 @@ app.get("/test-information/:test_id", function(request, response){
     const sql_zero = `SELECT * FROM
                         (SELECT A.Answer_ID, A.Question_ID, A.description AS Answer_Description, 
                             A.Value, Q.Test_ID, Q.Description AS Question_Description,
-                            Q.Category, PA.Answer_ID AS Prev_Answer, Q.Type AS Type, Q.A_Mode AS Mode 
+                            Q.Category, PA.Answer_ID AS Prev_Answer, Q.Type AS Type, Q.A_Mode AS Mode, Q.Photo AS Photo 
                                 FROM Answer AS A
                                     INNER JOIN (SELECT * FROM Question WHERE A_Mode = 'single') AS Q ON A.Question_ID = Q.Question_ID
                                     LEFT JOIN (SELECT * FROM Person_Answer WHERE VK_ID = ${request.query.user_id} AND Result_ID = 0) AS PA ON PA.Answer_ID = A.Answer_ID
@@ -1170,14 +1167,14 @@ app.get("/test-information/:test_id", function(request, response){
                         UNION
                         SELECT A.Answer_ID, A.Question_ID, A.description AS Answer_Description, 
                             A.Value, Q.Test_ID, Q.Description AS Question_Description,
-                            Q.Category, NULL AS Prev_Answer, Q.Type AS Type, Q.A_Mode AS Mode 
+                            Q.Category, NULL AS Prev_Answer, Q.Type AS Type, Q.A_Mode AS Mode, Q.Photo AS Photo 
                                 FROM Answer AS A
                                     INNER JOIN (SELECT * FROM Question WHERE A_Mode = 'multiple') AS Q ON A.Question_ID = Q.Question_ID
                                         WHERE Q.Test_ID = ${request.params.test_id}
                         UNION
                         SELECT NULL AS Answer_ID, Q.Question_ID AS Question_ID, NULL AS Answer_Description, 
                             NULL AS Value, Q.Test_ID AS Test_ID, Q.Description AS Question_Description,
-                            NULL AS Category, PMA.Answer AS Prev_Answer, Q.Type AS Type, Q.A_Mode AS Mode
+                            NULL AS Category, PMA.Answer AS Prev_Answer, Q.Type AS Type, Q.A_Mode AS Mode, Q.Photo AS Photo
                                 FROM Question AS Q, Person_MultiAnswer AS PMA
                                         WHERE Q.Question_ID = PMA.Question_ID AND Q.A_Mode = 'multiple' 
                                             AND PMA.Status = 0 AND PMA.VK_ID = ${request.query.user_id} AND Q.Test_ID = ${request.params.test_id}) AS KKJ
@@ -1221,6 +1218,7 @@ app.get("/test-information/:test_id", function(request, response){
                             Question_ID: results[i].Question_ID,
                             Test_ID: results[i].Test_ID,
                             Question_Description: results[i].Question_Description,
+                            Photo: results[i].Photo != null ? results[i].Photo : '',
                             Category: results[i].Category,
                             Type: results[i].Type,
                             Mode: results[i].Mode,
@@ -1296,7 +1294,8 @@ app.post("/person-answer", jsonParser, function (request, response) {
             host: DB_HOST,
             user: DB_USER,
             database: DB_NAME,
-            password: DB_PASSWORD
+            password: DB_PASSWORD,
+            connectionLimit: 1000
         });
 
         // Обновление статуса ответов с "временных" на "лишние"
@@ -1345,7 +1344,8 @@ app.post("/person-answer", jsonParser, function (request, response) {
             host: DB_HOST,
             user: DB_USER,
             database: DB_NAME,
-            password: DB_PASSWORD
+            password: DB_PASSWORD,
+            connectionLimit: 1000
         });
         
         // Обновляем статус предыдущих ответов с "временных" на "лишние"

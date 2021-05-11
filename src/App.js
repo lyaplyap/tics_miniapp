@@ -18,7 +18,7 @@ class App extends React.Component {
 	  this.state = {
 		
 		// Пользовательские параметры
-		user_id: 1, // VK ID пользователя
+		user_id: 1, 		// VK ID пользователя
 		user_token: '',		// VK Token пользователя
 
 		// Информация о тесте/тестах
@@ -36,10 +36,10 @@ class App extends React.Component {
 		popout: null,			// Активный popout-элемент
 		activeModal: null,		// Активная модальная страница
 		countquest: 0,			// Номер текущего вопроса
-
+		
 		lastQuestionIsAnswered: 0,
 
-		// Параметры для ралзличных типов ответа
+		// Параметры для различных типов ответа
 		selectedAnswers: [],	// Выбранные ответы (массив чекбоксов/друзей)
 		inputLabels: [],		// Введённые ответы
 
@@ -52,6 +52,9 @@ class App extends React.Component {
 		actionsLog: [],
 		countbar: 0
 	}
+
+	  // Инициализация пользователя
+	  this.userDBAuth = this.userDBAuth.bind(this);			// "Авторизация" пользовательского id в БД 
 
 	  // Функции, что-то получающие с помощью VK Bridge
 	  this.getUserId = this.getUserId.bind(this); 			// Получение идентификатора текущего пользователя (user_id)
@@ -84,6 +87,7 @@ class App extends React.Component {
 	  this.closePopout = this.closePopout.bind(this);						  // Закрытие popout-элемента
 	  this.showFactorClarification = this.showFactorClarification.bind(this); // Вызов popout-элемента с описанием выбранного фактора
 	  this.setActiveModal = this.setActiveModal.bind(this); 				  // Открытие/закрытие модального окна с инструкцией
+	  this.testPassingError = this.testPassingError.bind(this);				  // Вызов popout-элемента при несоблюдении какого-то из условий тестирования
 	  // (кнопки вперёд-назад)
 	  this.goForward = this.goForward.bind(this);	// Вперёд по тесту
 	  this.goBack = this.goBack.bind(this);			// Назад по тесту
@@ -92,16 +96,45 @@ class App extends React.Component {
 	  this.chooseBox = this.chooseBox.bind(this);					// Чекбоксы с выбором множества вариантов
 	  this.inputHandleSubmit = this.inputHandleSubmit.bind(this);	// Ввод значения из инпута
 	  this.inputHandleChange = this.inputHandleChange.bind(this);	// Динамическое изменение значения в инпуте
+	  this.chooseFriends = this.chooseFriends.bind(this);			// Выбор из списка друзей
 	}
 
 	// Инициализация клиента
 
 	componentDidMount () {
-		//console.log("componentDidMount()");
 		this.getUserId();
-		this.getUserToken();
+		this.userDBAuth(); // FIXES: Вероятно, необходимо будет поместить в getUserId
 		this.getTestList();
-		this.checkPostExists();
+	}
+
+	userDBAuth () {
+		let xhr = new XMLHttpRequest();
+
+		// Блокировка интерфейса до подгрузки данных с сервера
+		xhr.addEventListener('readystatechange', () => {
+			
+			if (xhr.readyState !== 4) {
+				this.setState({ popout: <ScreenSpinner /> });
+			}
+			if ((xhr.readyState == 4) && (xhr.status == 200)) {
+				this.closePopout();
+			}
+		});
+
+		xhr.open('GET', `user-db-auth?user_id=${this.state.user_id}`, true);
+		xhr.responseType = 'json';
+		xhr.send();
+		xhr.onload = () => {
+			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
+				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
+			} 
+			else {
+				this.getUserToken();
+				this.checkPostExists();
+
+				console.log(xhr.response.results);
+			}
+		};
 	}
 
 
@@ -111,7 +144,7 @@ class App extends React.Component {
 		bridge
   			.send("VKWebAppGetUserInfo")
   			.then(data => {
-				this.setState({user_id: data.id});
+				this.setState({ user_id: data.id });
   			})
   			.catch(error => {
     			// Обработка события в случае ошибки
@@ -120,7 +153,7 @@ class App extends React.Component {
 
 	getUserToken () {
 		bridge
-			.send("VKWebAppGetAuthToken", {"app_id": 0 /* FIXES: INPUT APP ID */, "scope": "wall"})
+			.send("VKWebAppGetAuthToken", { "app_id": 0 /* FIXES: INPUT APP ID */, "scope": "wall" })
 			.then(data => {
 				//console.log(data);
 				this.setState({ user_token: data.access_token });
@@ -561,7 +594,7 @@ class App extends React.Component {
 			
 			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
 			
-			this.setState({ countquest: 0, activePanel: 'results' });
+			this.setState({ countquest: 0, lastQuestionIsAnswered: 1, activePanel: 'results' });
 			this.postUserPost();
 		}
 	}
@@ -585,7 +618,7 @@ class App extends React.Component {
 	toNecessaryPanel (panel, test_id) {
 
 		// Отображаем название текущего теста
-		this.setState({ currentTestLable: this.state.testList[(test_id - 1) / 10].Name });
+		this.setState({ currentTestLable: this.state.testList[(test_id - 1) / 10].Name, lastQuestionIsAnswered: 0 });
 
 		// Получаем информацию текущего теста
 		this.getInformation(test_id);
@@ -670,6 +703,26 @@ class App extends React.Component {
 		}
 	}
 
+	testPassingError () {		
+		this.setState({ popout:
+			<Alert
+				actionsLayout="horizontal"
+				actions={[{
+				title: 'Ок',
+				autoclose: true,
+				mode: 'cancel'
+				}]}
+				onClose={this.closePopout}
+			>
+				<h2>🤔</h2>
+				<p>
+					Какое-то из условий теста не было выполнено. Внимательно прочтите инструкцию, прежде чем двигаться дальше. 
+					Сделать это можно, нажав на надпись <b>Вопрос №...</b> наверху.
+				</p>
+			</Alert>
+		});
+	}
+
 
 	// Функции клиента (кнопки вперёд-назад)
 
@@ -699,6 +752,18 @@ class App extends React.Component {
 					}
 				}
 				this.setState({});
+			}
+
+			// Ограничения на тест "Опрос-ситуации"
+			if (this.state.testInformation[0].Test_ID === 41 && 
+				this.state.testInformation[this.state.countquest].Type === 'priority-friends') {
+				if ((this.state.testInformation[this.state.countquest].isDone === 0) || 
+					(this.state.testInformation[this.state.countquest].isDone === 1 && this.state.selectedAnswers.length !== 0)) {
+					if (this.state.selectedAnswers.length < 3) {
+						this.testPassingError();
+						return;
+					}
+				}
 			}
 
 			// Пользователь не отвечал ранее на текущий вопрос
@@ -739,6 +804,9 @@ class App extends React.Component {
 				
 				// Отправка нового ответа
 				this.postPersonAnswer(0, this.state.countquest);
+				
+				this.state.testInformation[this.state.countquest].Prev_Answers = [];
+				this.setState({});
 
 				for (let i = 0; i < this.state.selectedAnswers.length; i++) {
 					this.state.testInformation[this.state.countquest].Prev_Answers[i] = this.state.selectedAnswers[i];
@@ -756,7 +824,7 @@ class App extends React.Component {
 				
 			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
 			
-			this.setState({ countquest: 0, activePanel: 'results', selectedAnswers: [], inputLabels: [] });
+			this.setState({ countquest: 0, lastQuestionIsAnswered: 1, activePanel: 'results', selectedAnswers: [], inputLabels: [] });
 			this.postUserPost();
 		}
 	}
@@ -814,6 +882,32 @@ class App extends React.Component {
 		e.preventDefault();
 	
 		console.log(this.state.inputLabels);
+	}
+
+	chooseFriends (index) {
+
+		// Ограничения на выбор друзей с приоритетом
+		if (this.state.testInformation[this.state.countquest].Type === 'priority-friends') {
+			for (let i = 0; i < index; i++) {
+				if (this.state.selectedAnswers[i] == undefined) {
+					this.testPassingError();
+					return;
+				}
+			}
+		}
+
+		bridge
+			.send("VKWebAppGetFriends", { multi: false })
+			.then(data => {
+				this.state.selectedAnswers[index] = `${data.users[0].first_name} ${data.users[0].last_name} (${data.users[0].id})`;
+				this.setState({});
+			})
+			.catch(error => {
+				// Обработка ошибки вызова или отказа от добавления друзей
+			})
+		
+		this.state.selectedAnswers[index] = `Friend #${index + 1}`;
+		this.setState({});
 	}
 
   
@@ -911,8 +1005,20 @@ class App extends React.Component {
 				</PanelHeaderContent>
 			</PanelHeader>
 			<Group>
+				{(this.state.testInformation.length > 0) && 
+				 (this.state.countquest < this.state.testInformation.length) &&
+				 (this.state.testInformation[this.state.countquest].Photo !== '') &&
+					<Div>
+						<img 
+							src={this.state.testInformation[this.state.countquest].Photo} 
+							style={{ 'max-height': '720', 'max-width': '1080px', 
+									 'height': '100%', 'width': '100%', 
+									 'object-fit': 'contain'}}
+						/>
+					</Div>
+				}
 	  			{this.state.testInformation.length > 0 && this.state.countquest < this.state.testInformation.length &&
-				  <Div>{this.state.testInformation[this.state.countquest].Question_Description}</Div>
+					<Div>{this.state.testInformation[this.state.countquest].Question_Description}</Div>
 				}
 				<Separator/>
 				{/*<FixedLayout vertical="bottom">*/}
@@ -923,6 +1029,7 @@ class App extends React.Component {
 				</Div>
 				{this.state.testInformation.length > 0 && this.state.countquest < this.state.testInformation.length &&
 					<Div>
+						{ /* Ответы для вопросов с типом button (кнопки) */ }
 						{this.state.testInformation[this.state.countquest].Type == 'button' &&
 						<>
 						{
@@ -934,6 +1041,7 @@ class App extends React.Component {
 						}
 						</>
 						}
+						{ /* Ответы для вопросов с типом checkbox (чекбоксы) */ }
 						{this.state.testInformation[this.state.countquest].Type == 'checkbox' &&
 						<>
 						{
@@ -948,6 +1056,7 @@ class App extends React.Component {
 						}
 						</>
 						}
+						{ /* Ответы для вопросов с типом checkbox-input (чекбоксы и форма для ввода снизу) */ }
 						{this.state.testInformation[this.state.countquest].Type == 'checkbox-input' &&
 						<>
 						{
@@ -977,6 +1086,7 @@ class App extends React.Component {
 						}
 						</>
 						}
+						{ /* Ответы для вопросов с типом input (форма ввода) */ }
 						{this.state.testInformation[this.state.countquest].Type == 'input' &&
 						<>
 						{
@@ -996,8 +1106,46 @@ class App extends React.Component {
 						}
 						</>
 						}
-						{( this.state.testInformation[this.state.countquest].Type != 'button' ||
-						   this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1 ) &&
+						{ /* Ответы для вопросов с типом priority-friends (друзья с приоритетом) */ }
+						{this.state.testInformation[this.state.countquest].Type == 'priority-friends' &&
+						<>
+						{
+							this.state.testInformation[this.state.countquest].Answers.map((ex, index) => (
+								<Group key={index}>
+									<Button 
+										size="xl" 
+										stretched mode="secondary" 
+										onClick={() => this.chooseFriends(index)}>
+											{this.state.selectedAnswers[index] != undefined ? this.state.selectedAnswers[index] : ex.Description}
+									</Button>
+								</Group>
+							))
+						}
+						</>
+						}
+						{
+						<>
+						{ /* Вывод предыдущих ответов */ }
+						{this.state.testInformation[this.state.countquest].Prev_Answers.length !== 0 &&
+							<>
+								<Div/>
+								<ul>
+									Ранее выбранные ответы:
+									{
+										this.state.testInformation[this.state.countquest].Prev_Answers.map((ex, index) => (
+											<li key={index}>
+												{ex}
+											</li>
+										))
+									}
+								</ul>
+							</>
+						}
+						</>
+						}
+						{ /* Кнопки "вперёд-назад" */ }
+						{(this.state.testInformation[this.state.countquest].Type != 'button' ||
+						  this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
 						<>
 							<Div/>
 							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
@@ -1014,6 +1162,7 @@ class App extends React.Component {
 				{/*</FixedLayout>*/}
 	  		</Group>
 		  </Panel>
+
 
 		  <Panel id="results">
 		  	<PanelHeader left={<PanelHeaderBack onClick={() => this.setState({ activePanel: 'test-mainpage' })}/>}>
@@ -1045,7 +1194,7 @@ class App extends React.Component {
 					<Div><Div><b>Дата последнего прохождения:</b> {(this.state.testResult[0].reply_date.substr(8,2) + '.' + this.state.testResult[0].reply_date.substr(5,2) + '.' + this.state.testResult[0].reply_date.substr(0,4) + ' ' + this.state.testResult[0].reply_date.substr(11,5) + ' UTC')}</Div></Div>
 				</>
 			}
-		    {this.state.testResult.length == 0 &&
+		    {this.state.testResult.length == 0 && this.state.lastQuestionIsAnswered == 0 &&
 				<>
 					<Div>
 						Упс... Кажется, результатов пока нет. Давайте это исправим!😉
