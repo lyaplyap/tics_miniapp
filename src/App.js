@@ -39,7 +39,7 @@ class App extends React.Component {
 		
 		lastQuestionIsAnswered: 0,
 
-		// параметры для ралзличных типов ответа
+		// Параметры для различных типов ответа
 		selectedAnswers: [],	// Выбранные ответы (массив чекбоксов/друзей)
 		inputLabels: [],		// Введённые ответы
 
@@ -1144,8 +1144,8 @@ class App extends React.Component {
 						</>
 						}
 						{ /* Кнопки "вперёд-назад" */ }
-						{( this.state.testInformation[this.state.countquest].Type != 'button' ||
-						   this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
+						{(this.state.testInformation[this.state.countquest].Type != 'button' ||
+						  this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
 						<>
 							<Div/>
 							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
