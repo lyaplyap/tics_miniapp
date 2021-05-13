@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Cell, PanelHeaderBack, Button, FixedLayout, ActionSheet } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Cell, List, PanelHeaderBack, Button, FixedLayout, ActionSheet } from '@vkontakte/vkui';
 import { ScreenSpinner, CellButton, Alert, Div, Separator } from '@vkontakte/vkui';
 import { Banner, SimpleCell, Header, InfoRow, Progress, PanelHeaderContent } from '@vkontakte/vkui';
 import { ModalRoot, ModalPage, ModalPageHeader, ModalRootContext, ModalCard, PanelHeaderClose, PanelHeaderSubmit } from '@vkontakte/vkui';
@@ -10,6 +10,16 @@ import View from '@vkontakte/vkui/dist/components/View/View';
 
 import '@vkontakte/vkui/dist/vkui.css';
 
+
+export class Instruction extends React.Component {
+	render() {
+	  const someHtml = this.props.text;
+	   
+	  return (
+		<div className="Container" dangerouslySetInnerHTML={{__html: someHtml}}></div>
+	  )
+	}
+}
 
 class App extends React.Component {
 	constructor(props) {
@@ -25,7 +35,7 @@ class App extends React.Component {
 		testList: [],			// Список всех доступных тестов
 		testInformation: [],	// Информация о выбранном тесте
 		testResult: [],			// Результаты последнего прохождения выбранного теста
-		testInstruction: [],	// Инструкция к выбранному тесту
+		testInstruction: '',	// Инструкция к выбранному тесту
 		currentTestLable: '',	// Название текущего теста
 
 		// Дополнительные параметры
@@ -51,6 +61,7 @@ class App extends React.Component {
 		selectedOption: '',
 		actionsLog: [],
 		countbar: 0
+
 	}
 
 	  // Инициализация пользователя
@@ -65,15 +76,14 @@ class App extends React.Component {
 	  this.getDonePercent = this.getDonePercent.bind(this); 		// Получение процентов отвеченных вопросов
 	  this.getInformation = this.getInformation.bind(this); 		// Получение коллекции с информацией о выбранном тесте
 	  this.getTestResult = this.getTestResult.bind(this); 			// Получение итоговых результатов по выбранному тесту
-	  this.getTestInstruction = this.getTestInstruction.bind(this); // Получение инструкции к выбранному тесту
 
 	  // Функции, что-то отправляющие с помощью POST-запроса на сервер
 	  this.postPersonAnswer = this.postPersonAnswer.bind(this); // Отправка ответа пользователя на текущий вопрос на сервер
 	  this.postUserPost = this.postUserPost.bind(this); 		// Отправка на сервер всех постов со страницы пользователя или ошибки
 
 	  // Функции-обработчики
-	  this.sayServerDoResult = this.sayServerDoResult.bind(this);	// Отправка на сервер сигнала для формирования в БД результатов тестирования (Person_Answer -> Result)
-	  this.sayServerUpdate = this.sayServerUpdate.bind(this); 		// Отправка на сервер сигнала о смене статуса ответов пользователя на "обработанные" в Person_Answer и Person_MultiAnswer 
+	  this.doResultUpdateAnswers = this.doResultUpdateAnswers.bind(this); 	// Формирование результата и смена статуса у ответов
+	  this.convertTestInstruction = this.convertTestInstruction.bind(this); // Конвертирование строки с инструкцией
 	  this.checkPostExists = this.checkPostExists.bind(this); 	  	// Проверка на присутствие постов пользователя в таблице Post
 
 	  // Функции клиента
@@ -327,43 +337,12 @@ class App extends React.Component {
 
 		console.log(this.state.testResult);
 	}
-
-	getTestInstruction (test_id) {
-
-		// Получение результатов тестирования (get-instruction/:test_id)
-		if (this.state.testInstruction.length !== 0) {
-			this.state.testInstruction = [];
-			this.setState({});
-		}
-
-		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `get-instruction/${test_id}`, true);
-		xhr.responseType = 'json';
-		xhr.send();
-		xhr.onload = () => {
-			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
-				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
-			} 
-			else { // если всё прошло гладко, выводим результат
-				//console.log(xhr.response.results); // response -- это ответ сервера
-				
-				let inf_length = 0;
-			  	for (let i = 0; i < xhr.response.results.length; i++) {
-					this.state.testInstruction[inf_length] =  xhr.response.results[i];
-					inf_length++;
-					this.setState({});
-			  	}
-			  	//this.setState({});
-			}
-		};
-
-		console.log(this.state.testInstruction);
-	}
 	
 	
 	// Функции, что-то отправляющие с помощью POST-запроса на сервер
 
 	postPersonAnswer (index, question_count) {
+
 		let data = JSON.stringify({});
 		if (this.state.testInformation[question_count].Mode == 'single') {
 			data = JSON.stringify({
@@ -389,15 +368,25 @@ class App extends React.Component {
 		xhr.addEventListener('readystatechange', () => {
 			
 			if (xhr.readyState !== 4) {
-				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
 				this.setState({ popout: <ScreenSpinner /> });
-    			//setTimeout(() => { this.setState({ popout: null }) }, 15000);
 			}
 			if ((xhr.readyState == 4) && (xhr.status == 200)) {
-				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
 				this.closePopout();
 			}
 		});
+
+		xhr.onloadend = () => {
+			if (xhr.status == 200) {
+			  
+				if ((question_count + 1) >= this.state.testInformation.length) {
+					this.doResultUpdateAnswers(this.state.testInformation[0].Test_ID);
+				
+				}
+			} 
+			else {
+			  console.log("Ошибка " + this.status);
+			}
+		};
 
 		// Посылаем запрос с данными на адрес "/person-answer"
         xhr.open("POST", "/person-answer", true);
@@ -409,8 +398,6 @@ class App extends React.Component {
 	postUserPost () {
 		
 		if (this.state.post_exists == 'no') {
-			
-			//console.log(this.state.post_exists);
 			
 			bridge
 				.send("VKWebAppCallAPIMethod", 
@@ -501,30 +488,22 @@ class App extends React.Component {
 
 	// Функции-обработчики
 
-	sayServerDoResult (test_id) {
-
-		// GET-запрос на /do-result/:test_id?user_id=...
+	doResultUpdateAnswers (test_id) {
+		
+		// GET-запрос на /do-results-update-answers/:test_id?user_id=...
 		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `do-result/${test_id}?user_id=${this.state.user_id}`, true);
-		xhr.responseType = 'json';
-		xhr.send();
-		xhr.onload = () => {
-			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
-				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
-			} 
-			else { // если всё прошло гладко, выводим результат
-				console.log(xhr.response.state); // response -- это ответ сервера
-				
-				this.sayServerUpdate(test_id, 1);
+
+		xhr.addEventListener('readystatechange', () => {
+			
+			if (xhr.readyState !== 4) {
+				this.setState({ popout: <ScreenSpinner /> });
 			}
-		};
-	}
+			if ((xhr.readyState == 4) && (xhr.status == 200)) {
+				this.closePopout();
+			}
+		});
 
-	sayServerUpdate (test_id, result_id) {
-
-		// GET-запрос на /update-person-answer/:test_id?user_id=...&result_id=...
-		let xhr = new XMLHttpRequest();
-		xhr.open('GET', `update-person-answer/${test_id}?user_id=${this.state.user_id}&result_id=${result_id}`, true);
+		xhr.open('GET', `do-results-update-answers/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
 		xhr.send();
 		xhr.onload = () => {
@@ -533,10 +512,23 @@ class App extends React.Component {
 			} 
 			else { // если всё прошло гладко, выводим результат
 				console.log(xhr.response.state); // response -- это ответ сервера
-					
 				this.getTestResult(test_id);
 			}
 		};
+
+	}
+
+	convertTestInstruction (test_id) {
+		this.setState({ testInstruction: '' });
+
+		const showdown = require('showdown');
+    	const converter = new showdown.Converter();
+			
+		const current_instruction = this.state.testList[(test_id - 1)/10].Instruction;
+
+		if (current_instruction != null) {
+			this.setState({ testInstruction: converter.makeHtml(current_instruction) });
+		}
 	}
 
 	checkPostExists () {
@@ -592,7 +584,12 @@ class App extends React.Component {
 
 		if (this.state.countquest >= this.state.testInformation.length) {
 			
-			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
+			//this.doResultUpdateAnswers(this.state.testInformation[0].Test_ID);
+
+			for (let i = 0; i < this.state.testInformation.length; i++) {
+				this.state.testInformation[i].Prev_Answers = [];
+				this.state.testInformation[i].isDone = 0;
+			}
 			
 			this.setState({ countquest: 0, lastQuestionIsAnswered: 1, activePanel: 'results' });
 			this.postUserPost();
@@ -602,7 +599,7 @@ class App extends React.Component {
 	testActive () {
 		this.testAccess();
 		
-		if (this.state.countquest == 0 && this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Instruction == '1') {
+		if (this.state.countquest == 0 && this.state.testInstruction != '') {
 			this.setActiveModal('modal-instruction');
 		}
 
@@ -623,10 +620,8 @@ class App extends React.Component {
 		// Получаем информацию текущего теста
 		this.getInformation(test_id);
 
-		// Получаем инструкцию
-		if (this.state.testList[(test_id - 1) / 10].Instruction == '1') {
-			this.getTestInstruction(test_id);
-		}
+		// Конвертируем инструкцию
+		this.convertTestInstruction(test_id);
 
 		// Получаем предыдущие результаты
 		this.getTestResult(test_id);
@@ -698,7 +693,7 @@ class App extends React.Component {
 	}
 
 	setActiveModal (modal_name) {
-		if (this.state.testList[(this.state.testInformation[0].Test_ID - 1) / 10].Instruction == '1') {
+		if (this.state.testInstruction != '') {
 			this.setState({ activeModal: modal_name });
 		}
 	}
@@ -821,8 +816,13 @@ class App extends React.Component {
 
 		// Если тест закончился
 		if (this.state.countquest >= this.state.testInformation.length) {
-				
-			this.sayServerDoResult(this.state.testInformation[0].Test_ID);
+			
+			//this.doResultUpdateAnswers(this.state.testInformation[0].Test_ID);
+
+			for (let i = 0; i < this.state.testInformation.length; i++) {
+				this.state.testInformation[i].Prev_Answers = [];
+				this.state.testInformation[i].isDone = 0;
+			}
 			
 			this.setState({ countquest: 0, lastQuestionIsAnswered: 1, activePanel: 'results', selectedAnswers: [], inputLabels: [] });
 			this.postUserPost();
@@ -926,34 +926,7 @@ class App extends React.Component {
 			}
 			>
 				<Div>
-				{this.state.testInstruction.length != 0 &&
-					<>
-						{
-							this.state.testInstruction.map((ex1, index1) => (
-								<p key={index1}>
-								{
-									ex1.body.map((ex2, index2) => (
-										<>
-										{ex2.tag == 'nothing' &&
-											<>{ex2.content}&nbsp;</>
-										}
-										{ex2.tag == 'list' &&
-											<ul><li>{ex2.content}&nbsp;</li></ul>
-										}
-										{ex2.tag == 'example' &&
-											<i>{ex2.content}&nbsp;</i>
-										}
-										{ex2.tag == 'attention' &&
-											<b>{ex2.content}&nbsp;</b>
-										}
-										</>
-									))
-								}
-								</p>
-							))
-						}
-					</>
-				}
+					<Instruction text={this.state.testInstruction}/>
 				</Div>
 			</ModalPage>
 		</ModalRoot>
@@ -1129,23 +1102,25 @@ class App extends React.Component {
 						{this.state.testInformation[this.state.countquest].Prev_Answers.length !== 0 &&
 							<>
 								<Div/>
-								<ul>
-									Ранее выбранные ответы:
+								<Group>
+									<Header mode="primary">Ранее выбранные ответы</Header>
+									<List>
 									{
 										this.state.testInformation[this.state.countquest].Prev_Answers.map((ex, index) => (
-											<li key={index}>
+											<SimpleCell key={index}>
 												{ex}
-											</li>
+											</SimpleCell>
 										))
 									}
-								</ul>
+									</List>
+								</Group>
 							</>
 						}
 						</>
 						}
 						{ /* Кнопки "вперёд-назад" */ }
-						{(this.state.testInformation[this.state.countquest].Type != 'button' ||
-						  this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
+						{( this.state.testInformation[this.state.countquest].Type != 'button' ||
+						   this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
 						<>
 							<Div/>
 							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
