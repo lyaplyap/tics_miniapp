@@ -905,9 +905,6 @@ class App extends React.Component {
 			.catch(error => {
 				// Обработка ошибки вызова или отказа от добавления друзей
 			})
-		
-		this.state.selectedAnswers[index] = `Friend #${index + 1}`;
-		this.setState({});
 	}
 
   
@@ -1119,8 +1116,8 @@ class App extends React.Component {
 						</>
 						}
 						{ /* Кнопки "вперёд-назад" */ }
-						{( this.state.testInformation[this.state.countquest].Type != 'button' ||
-						   this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
+						{(this.state.testInformation[this.state.countquest].Type != 'button' ||
+						  this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
 						<>
 							<Div/>
 							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
