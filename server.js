@@ -3,7 +3,6 @@ const express = require('express');
 const path = require('path');
 const port = process.env.PORT || 8080;
 const mysql = require('mysql2');
-const enforce = require('express-sslify');
 
 // Параметры входа в БД
 const DB_HOST = "";
@@ -12,8 +11,6 @@ const DB_NAME = "";
 const DB_PASSWORD = "";
  
 const app = express();
-app.use(enforce.HTTPS({ trustProtoHeader: true }));
-
 const jsonParser = express.json();
 
 // Здесь приложение отдаёт статику
@@ -25,6 +22,37 @@ app.get('/ping', function (req, res) {
     return res.send('pong');
 });
 
+
+// Do Result and Update Answers
+app.get("/do-results-update-answers/:test_id", function(request, response){
+    
+    const connection = mysql.createConnection({
+        host: DB_HOST,
+        user: DB_USER,
+        database: DB_NAME,
+        password: DB_PASSWORD
+    });
+
+    const sql_zero = `CALL F_DoResultUpdateAnswers(${request.query.user_id}, ${request.params.test_id});`;
+       
+    connection.query(sql_zero, function(error, results) {
+        if (error) {
+            console.log(error);
+        }
+        else {
+
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (do-results-update-answers)");
+            });
+
+            response.setHeader('Content-Type', 'application/json');
+            response.send(JSON.stringify({ results: 'do_res and upd_ans success' }));
+        }
+    });
+});
 
 // "Авторизация" пользователя в БД
 app.get("/user-db-auth", function(request, response){
@@ -43,66 +71,17 @@ app.get("/user-db-auth", function(request, response){
             console.log(error);
         }
         else {
+
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (user-db-auth)");
+            });
+
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: 'auth success' }));
         }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
-    });
-});
-
-// Получение инструкции к тесту
-app.get("/get-instruction/:test_id", function(request, response){
-    
-    const connection = mysql.createConnection({
-        host: DB_HOST,
-        user: DB_USER,
-        database: DB_NAME,
-        password: DB_PASSWORD
-    });
-
-    const sql_zero = `SELECT * FROM Instruction WHERE Test_ID = ${request.params.test_id};`;
-       
-    connection.query(sql_zero, function(error, results) {
-        if (error)
-            console.log(error);
-        else {
-            
-            results.sort((a, b) => a.Position > b.Position ? 1 : -1);
-
-            // Обработка инструкции
-            let artisanal_data = [];
-            for (let i = 0; i < (results[results.length - 1].Paragraph + 1); i++) {
-                artisanal_data[i] = {
-                    paragraph: i,
-                    body: []
-                }
-            }
-
-            
-            for (let i = 0; i < results.length; i++) {
-                artisanal_data[results[i].Paragraph].body.push({
-                    content: results[i].Content,
-                    tag: results[i].Tag
-                });
-            }
-            
-
-            response.setHeader('Content-Type', 'application/json');
-            response.send(JSON.stringify({ results: artisanal_data }));
-        }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
     });
 });
 
@@ -122,6 +101,14 @@ app.get("/check-post-exists", function(request, response){
         if (error)
             console.log(error);
         else {
+
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (check-post-exists)");
+            });
+
             if (results.length == 0) {
                 response.setHeader('Content-Type', 'application/json');
                 response.send(JSON.stringify({ results: 'no' }));
@@ -131,13 +118,6 @@ app.get("/check-post-exists", function(request, response){
                 response.send(JSON.stringify({ results: 'yes' }));
             }
         }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
     });
 });
 
@@ -940,140 +920,17 @@ app.get("/get-processed-result/:test_id", function(request, response){
 
             }
 
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (get-proccessed-results)");
+            });
+
             // Отправка на клиент обработанных результатов
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: processed_data }));
         }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
-    });
-});
-
-// Получение результатов тестирования
-app.get("/get-result/:test_id", function(request, response){
-    
-    const connection = mysql.createConnection({
-        host: DB_HOST,
-        user: DB_USER,
-        database: DB_NAME,
-        password: DB_PASSWORD
-    });
-
-    const sql_zero = `SELECT Result_ID, VK_ID, Test_ID, Factor, Value, Reply_Date FROM result
-                        WHERE VK_ID = ${request.query.user_id} AND Test_ID = ${request.params.test_id} AND 
-                            Reply_Date = (SELECT MAX(Reply_Date) FROM result WHERE VK_ID = ${request.query.user_id} AND Test_ID = ${request.params.test_id});`;
-       
-    connection.query(sql_zero, function(error, results) {
-        if (error)
-            console.log(error);
-        else {
-            response.setHeader('Content-Type', 'application/json');
-            response.send(JSON.stringify({ results: results }));
-        }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
-    });
-});
-
-// Обновление Result_ID в Person_Answer и Person_MultiAnswer
-app.get("/update-person-answer/:test_id", function(request, response){
-    
-    const connection = mysql.createConnection({
-        host: DB_HOST,
-        user: DB_USER,
-        database: DB_NAME,
-        password: DB_PASSWORD
-    });
-
-    const sql_pa = `UPDATE person_answer as nt 
-                        SET nt.Result_ID = ${request.query.result_id}
-                        WHERE nt.Person_Answer_ID IN 
-                            (SELECT nw.Person_Answer_ID FROM 
-                            (SELECT pa.person_answer_id  
-                                FROM person_answer as pa   
-                                    JOIN answer as a ON a.answer_id = pa.answer_id   
-                                    JOIN question as q ON q.question_id = a.question_id    
-                                    WHERE pa.vk_id = ${request.query.user_id} AND q.test_id = ${request.params.test_id}
-                                         AND pa.result_id = 0 AND q.A_Mode = 'single') as \`nw\`);`;
-       
-    connection.query(sql_pa, function(error, results) {
-        if (error)
-            console.log(error);
-        else {
-            console.log('PA update successful!');
-        }
-    });
-
-    const sql_pma = `UPDATE Person_MultiAnswer SET Status = 1 
-                        WHERE Question_ID IN (SELECT NT.Question_ID FROM (SELECT PMA.Question_ID FROM Person_MultiAnswer AS PMA, Question AS Q 
-                            WHERE PMA.Question_ID =  Q.Question_ID AND Test_ID = ${request.params.test_id} AND Q.A_Mode = 'multiple'
-                            GROUP BY PMA.Question_ID) AS NT)
-                                AND VK_ID = ${request.query.user_id} AND Status = 0;`;
-
-    connection.query(sql_pma, function(error, results) {
-        if (error)
-            console.log(error);
-        else {
-            console.log('PMA update successful!');
-        }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
-    });
-
-    response.setHeader('Content-Type', 'application/json');
-    response.send(JSON.stringify({ state: 'update person_answer & person_multianswer ok!' }));
-});
-
-// person_answer -> result 
-app.get("/do-result/:test_id", function(request, response){
-    
-    const connection = mysql.createConnection({
-        host: DB_HOST,
-        user: DB_USER,
-        database: DB_NAME,
-        password: DB_PASSWORD
-    });
-
-    const sql_zero = `INSERT INTO result(VK_ID, Test_ID, Factor, Value, Reply_Date)  
-                        SELECT nwt.VK_ID, nwt.Test_ID, nwt.Factor, nwt.Value, nwt.Reply_Date
-                        FROM
-                        (SELECT pa.VK_ID, q.Test_ID, pa.Result_ID, q.Category as Factor, SUM(a.Value) as Value, NOW() as Reply_Date 
-                            FROM person_answer as pa
-                                LEFT JOIN answer as a ON pa.answer_id = a.answer_id
-                                LEFT JOIN question as q ON a.question_id = q.question_id
-                                    WHERE q.Test_ID = ${request.params.test_id} AND pa.VK_ID = ${request.query.user_id} 
-                                        AND pa.result_id = 0 AND q.A_Mode = 'single'
-                                        GROUP BY q.Category) as nwt;`;
-       
-    connection.query(sql_zero, function(error, results) {
-        if (error)
-            console.log(error);
-        else {
-            response.setHeader('Content-Type', 'application/json');
-            response.send(JSON.stringify({ state: 'do-result ok!' }));
-        }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
     });
 });
 
@@ -1094,16 +951,17 @@ app.get("/test-list", function(request, response){
             console.log(error);
         }
         else {
+
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (test-list)");
+            });
+
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: results }));
         }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
     });
 });
 
@@ -1133,16 +991,17 @@ app.get("/test-percent", function(request, response){
         if (error)
             console.log(error);
         else {
+
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (test-percent)");
+            })
+
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: results }));
         }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
     });
 });
 
@@ -1252,17 +1111,17 @@ app.get("/test-information/:test_id", function(request, response){
                 }
 
             }
+
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (test-information)");
+            });
                 
             response.setHeader('Content-Type', 'application/json');
             response.send(JSON.stringify({ results: data }));
         }
-    });
-
-    connection.end(function(error) {
-        if (error) {
-            return console.log("Ошибка: " + error.message);
-        }
-        console.log("Подключение закрыто");
     });
 });
 
@@ -1298,36 +1157,47 @@ app.post("/person-answer", jsonParser, function (request, response) {
             connectionLimit: 1000
         });
 
-        // Обновление статуса ответов с "временных" на "лишние"
-        connection.query(`UPDATE Person_MultiAnswer SET Status = 2 WHERE VK_ID = ${vk_id} AND Question_ID = ${question_id} AND Status = 0;`, function(error, results) {
-            if (error) {
-                console.log(error);
-            }
-            //
-        });
+        let person_data = [];
+        let sql_add = "INSERT INTO person_multianswer(VK_ID, Answer, Question_ID, Reply_Date, Status) VALUES ";
 
-        // Добавляем ответы пользователя в таблицу Person_MultiAnswer
-        for (let i = 0; i < person_answers.length; i++) {
-            const sql_add = "INSERT INTO person_multianswer(VK_ID, Answer, Question_ID, Reply_Date, Status) VALUES (?, ?, ?, ?, DEFAULT);";
-            const person_data = [vk_id, person_answers[i], question_id, datetime]
-            console.log(person_data)
-            connection.query(sql_add, person_data, function(error, results) {
-                if (error) {
-                    console.log(error);
+        // 1. Обновление статуса ответов с "временных" на "лишние"
+        connection.promise().query(`UPDATE Person_MultiAnswer SET Status = 2 WHERE VK_ID = ${vk_id} AND Question_ID = ${question_id} AND Status = 0;`)
+        // 2. Добавление ответов пользователя в таблицу Person_MultiAnswer    
+            .then(() => { 
+                for (let i = 0; i < person_answers.length; i++) {
+                    if (i != (person_answers.length - 1)) {
+                        sql_add += "(?, ?, ?, ?, DEFAULT), ";
+                    }
+                    else {
+                        sql_add += "(?, ?, ?, ?, DEFAULT);"
+                    }
+                    person_data.push(vk_id, person_answers[i], question_id, datetime);
+        
+                    console.log(person_data)
                 }
-                //console.log(results);
+
+                connection.query(sql_add, person_data, function(error, results) {
+                    if (error) {
+                        console.log(error);
+                    }
+                });
+            })
+        // 3. Закрытие подключения
+            .then(() => {
+                connection.end(function(error) {
+                    if (error) {
+                        return console.log("Ошибка: " + error.message);
+                    }
+                    console.log("Подключение закрыто (скрипт add to person_multianswer)");
+                });
+            })
+        // 4. Отправка ответа от сервера
+            .then(() => {
+                response.end('It worked!');
+            })
+            .catch(function(error) {
+                console.log(error.message);
             });
-        }
-
-        // Закрытие подключения
-        connection.end(function(error) {
-            if (error) {
-                return console.log("Ошибка: " + error.message);
-            }
-            console.log("Подключение закрыто");
-        });
-
-        response.end('It worked!');
     }
 
     else if (request.body.question_mode == 'single') {
@@ -1348,41 +1218,43 @@ app.post("/person-answer", jsonParser, function (request, response) {
             connectionLimit: 1000
         });
         
-        // Обновляем статус предыдущих ответов с "временных" на "лишние"
         const sql_upd = `UPDATE Person_Answer SET Result_ID = 2 
                             WHERE Person_Answer_ID = (SELECT * FROM (SELECT PA.Person_Answer_ID
                                 FROM Person_Answer AS PA, Answer AS A, Question AS Q
                                     WHERE PA.Answer_ID = A.Answer_ID AND A.Question_ID = Q.Question_ID 
                                         AND PA.VK_ID = ${vk_id} AND Result_ID = 0 AND Q.Question_ID = ${question_id}) AS NKD);`;
-        
-        connection.query(sql_upd, function(error, results) {
-            if (error) {
-                console.log(error);
-            }
-            console.log('update person_answer to result_id = 2!');
-        });
 
-        // Добавляем ответ пользователя в таблицу Person_Answer
         const sql_add = "INSERT INTO person_answer(VK_ID, Answer_ID, Reply_Date) VALUES (?, ?, ?);";
+
+        const person_data = [vk_id, person_answer, datetime];
+        console.log(person_data);
         
-        const person_data = [vk_id, person_answer, datetime]
-        console.log(person_data)
-        connection.query(sql_add, person_data, function(error, results) {
-            if (error) {
-                console.log(error);
-            }
-            console.log('insert into person_answer new answer!');
-        });
-
-        // Закрытие подключения
-        connection.end(function(error) {
-            if (error) {
-                return console.log("Ошибка: " + error.message);
-            }
-            console.log("Подключение закрыто");
-        });
-
-        response.end('It worked!');
+        // 1. Обновление статуса предыдущих ответов с "временных" на "лишние"
+        connection.promise().query(sql_upd)
+        // 2. Добавление ответа пользователя в таблицу Person_Answer
+            .then(() => { 
+                connection.query(sql_add, person_data, function(error, results) {
+                    if (error) {
+                        console.log(error);
+                    }
+                });
+            })
+        // 3. Закрытие подключения
+            .then(() => {
+                connection.end(function(error) {
+                    if (error) {
+                        return console.log("Ошибка: " + error.message);
+                    }
+                    console.log("Подключение закрыто (скрипт add to person_answer)");
+                });
+            })
+        // 4. Отправка ответа от сервера
+            .then(() => {
+                response.end('It worked!');
+            })
+            .catch(function(error) {
+                console.log(error.message);
+            });
     }
 });
 
@@ -1400,59 +1272,76 @@ app.post("/person-post", jsonParser, function (request, response) {
         password: DB_PASSWORD
     });
 
-    // Добавляем посты пользователя в БД
+    let sql_add = '';
+    let post_data = [];
+
+    // Формируем sql-строку и массив данных для записи
     if (request.body.collection.error_msg != undefined){
-        const sql_add = "INSERT INTO Post(Error, VK_ID) VALUES (?, ?);";
-        const post_data = [request.body.collection.error_msg, request.body.id]; // ?
-        connection.query(sql_add, post_data, function(error, results) {
-            if (error) {
-                console.log(error);
-            }
-            //console.log(results);
-        });
+        sql_add = "INSERT INTO Post(Error, VK_ID) VALUES (?, ?);";
+        post_data = [request.body.collection.error_msg, request.body.id]; // ?
     }
     else {
+        sql_add = "INSERT INTO Post(Post_VK_ID, VK_ID, Description, Likes, Reposts, Comments, Reply_Date, Views, Attachments_Type) VALUES ";
+        
+        let date = new Date(request.body.collection.items[i].date * 1000);
+        let datetime = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+
         for (let i = 0; i < request.body.collection.items.length; i++) {
-            let date = new Date(request.body.collection.items[i].date * 1000);
-            let datetime = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
             
-            let sql_add = "INSERT INTO Post(Post_VK_ID, VK_ID, Description, Likes, Reposts, Comments, Reply_Date";
-            let post_data = [request.body.collection.items[i].id, 
-                             request.body.collection.items[i].owner_id, 
-                             request.body.collection.items[i].text,
-                             request.body.collection.items[i].likes.count,
-                             request.body.collection.items[i].reposts.count,
-                             request.body.collection.items[i].comments.count,
-                             datetime];
+            sql_add += "(?, ?, ?, ?, ?, ?, ?";
+            post_data.push(request.body.collection.items[i].id, 
+                           request.body.collection.items[i].owner_id, 
+                           request.body.collection.items[i].text,
+                           request.body.collection.items[i].likes.count,
+                           request.body.collection.items[i].reposts.count,
+                           request.body.collection.items[i].comments.count,
+                           datetime);
+
             if (request.body.collection.items[i].views != undefined) {
-                sql_add = sql_add + ", Views";
+                sql_add += ", ?";
                 post_data.push(request.body.collection.items[i].views.count);
             }
+            else {
+                sql_add += ", NULL";
+            }
+
             if (request.body.collection.items[i].attachments != undefined) {
-                sql_add = sql_add + ", Attachments_Type";
+                sql_add += ", ?";
                 post_data.push(request.body.collection.items[i].attachments[0].type);
             }
-            sql_add = sql_add + ") VALUES (?"
-            for (let i = 1; i < post_data.length; i++) {
-                sql_add = sql_add + ", ?";
+            else {
+                sql_add += ", NULL";
             }
-            sql_add = sql_add + ");";
 
-            connection.query(sql_add, post_data, function(error, results) {
-                if (error) {
-                    console.log(error);
-                }
-                //console.log(results);
-            });
+            if (i != (request.body.collection.items.length - 1)) {
+                sql_add += "), "
+            }
+            else {
+                sql_add += ");"
+            }
         }
     }
 
-    // Закрытие подключения
-    connection.end(function(error) {
+    connection.query(sql_add, post_data, function(error, results) {
         if (error) {
-            return console.log("Ошибка: " + error.message);
+            console.log(error);
+            // Закрытие подключения
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение с ошибкой закрыто (person-post)");
+            });
         }
-        console.log("Подключение закрыто");
+        else {
+            // Закрытие подключения
+            connection.end(function(error) {
+                if (error) {
+                    return console.log("Ошибка: " + error.message);
+                }
+                console.log("Подключение закрыто (person-post)");
+            });
+        }
     });
 
     response.end('It worked!');
