@@ -522,7 +522,7 @@ class App extends React.Component {
 		this.setState({ testInstruction: '' });
 
 		const showdown = require('showdown');
-    	const converter = new showdown.Converter();
+    		const converter = new showdown.Converter();
 			
 		const current_instruction = this.state.testList[(test_id - 1)/10].Instruction;
 
