@@ -4,6 +4,8 @@ import { Banner, SimpleCell, Header, InfoRow, Progress, PanelHeaderContent } fro
 import { ModalRoot, ModalPage, ModalPageHeader, ModalRootContext, ModalCard, PanelHeaderClose, PanelHeaderSubmit } from '@vkontakte/vkui';
 import { Checkbox, FormLayout, Input } from '@vkontakte/vkui';
 
+import one_tap from './images/one_tap.png';
+
 import React from 'react';
 import bridge from '@vkontakte/vk-bridge';
 import View from '@vkontakte/vkui/dist/components/View/View';
@@ -52,15 +54,6 @@ class App extends React.Component {
 		// Параметры для различных типов ответа
 		selectedAnswers: [],	// Выбранные ответы (массив чекбоксов/друзей)
 		inputLabels: [],		// Введённые ответы
-
-		// FIXES: Вероятно, удаляем
-		userChoice: [],
-		testQuestion: [],
-		testAnswer: [],
-		snackbar: null,
-		selectedOption: '',
-		actionsLog: [],
-		countbar: 0
 
 	}
 
@@ -113,7 +106,6 @@ class App extends React.Component {
 
 	componentDidMount () {
 		this.getUserId();
-		this.userDBAuth(); // FIXES: Вероятно, необходимо будет поместить в getUserId
 		this.getTestList();
 	}
 
@@ -142,7 +134,8 @@ class App extends React.Component {
 				this.getUserToken();
 				this.checkPostExists();
 
-				console.log(xhr.response.results);
+				// Вывод в консоль статуса авторизации
+				//console.log(xhr.response.results);
 			}
 		};
 	}
@@ -155,15 +148,16 @@ class App extends React.Component {
   			.send("VKWebAppGetUserInfo")
   			.then(data => {
 				this.setState({ user_id: data.id });
+				this.userDBAuth();
   			})
   			.catch(error => {
     			// Обработка события в случае ошибки
-  			});
+			});
 	}
 
 	getUserToken () {
 		bridge
-			.send("VKWebAppGetAuthToken", { "app_id": 0 /* FIXES: INPUT APP ID */, "scope": "wall" })
+			.send("VKWebAppGetAuthToken", { "app_id": 7794698, "scope": "wall" })
 			.then(data => {
 				//console.log(data);
 				this.setState({ user_token: data.access_token });
@@ -245,7 +239,8 @@ class App extends React.Component {
 			}
 		};
 
-		console.log(this.state.testList);
+		// Вывод в консоль списка тестов
+		//console.log(this.state.testList);
 	}
 
 	getInformation (test_id) {
@@ -289,7 +284,8 @@ class App extends React.Component {
 			}
 		};
 
-		console.log(this.state.testInformation);
+		// Вывод в консоль информации о тесте
+		//console.log(this.state.testInformation);
 	}
 
 	getTestResult (test_id) {
@@ -335,7 +331,8 @@ class App extends React.Component {
 			}
 		};
 
-		console.log(this.state.testResult);
+		// Вывод в консоль результатов тестирования
+		//console.log(this.state.testResult);
 	}
 	
 	
@@ -409,34 +406,18 @@ class App extends React.Component {
 										"filter": "owner",
 										"count": 100, 
 										"v":"5.84", 
-										"access_token": this.state.user_token != '' ? this.state.user_token : '' /* FIXME: INPUT APP SERVICE KEY */
+										"access_token": this.state.user_token != '' ? this.state.user_token : '04f6c90c04f6c90c04f6c90c8904803906004f604f6c90c649c7241ac6c8786832c152d'
 									}
 						})
 				.then(data => {
-					//console.log(data);
-					console.log('data');
-					console.log(data.response.items);
+					// Вывод в консоль всех постов пользователя
+					//console.log(data.response.items);
 					
 					// Отправка данных на сервер
 					let temp = JSON.stringify({
 						collection: data.response.items, 
 						id: this.state.user_id });
 					let xhr = new XMLHttpRequest();
-			
-					/*
-					xhr.addEventListener('readystatechange', () => {
-
-					if (xhr.readyState !== 4) {
-						//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-						this.setState({ popout: <ScreenSpinner /> });
-						//setTimeout(() => { this.setState({ popout: null }) }, 15000);
-					}
-					if ((xhr.readyState == 4) && (xhr.status == 200)) {
-						//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-						this.closePopout();
-					}
-					});
-					*/
 			
 					// Посылаем запрос с данными на адрес "/person-answer"
 					xhr.open("POST", "/person-post", true);
@@ -445,9 +426,8 @@ class App extends React.Component {
 					xhr.send(temp);
 				})
 				.catch(error => {
+					// Вывод в консоль ошибки получения постов пользователя
 					//console.log(error);
-					console.log('error');
-					console.log(error.error_data.error_reason);
 
 					// Отправка ошибки на сервер
 					let temp = JSON.stringify({
@@ -455,33 +435,16 @@ class App extends React.Component {
 						id: this.state.user_id });
 					let xhr = new XMLHttpRequest();
 
-					/*
-					xhr.addEventListener('readystatechange', () => {
-
-					if (xhr.readyState !== 4) {
-						//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-						this.setState({ popout: <ScreenSpinner /> });
-						//setTimeout(() => { this.setState({ popout: null }) }, 15000);
-					}
-					if ((xhr.readyState == 4) && (xhr.status == 200)) {
-						//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-						this.closePopout();
-					}
-					});
-					*/
-
 					// Посылаем запрос с данными на адрес "/person-answer"
 					xhr.open("POST", "/person-post", true);
 
 					xhr.setRequestHeader("Content-Type", "application/json");
 					xhr.send(temp);
-
 				});
 		}
 		else {
 			// Пропуск хода
-			//console.log(this.state.post_exists);
-			console.log('skip');
+			//console.log('skip');
 		}
 	}
 
@@ -511,7 +474,7 @@ class App extends React.Component {
 				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
 			} 
 			else { // если всё прошло гладко, выводим результат
-				console.log(xhr.response.state); // response -- это ответ сервера
+				//console.log(xhr.response.state); // response -- это ответ сервера
 				this.getTestResult(test_id);
 			}
 		};
@@ -522,7 +485,7 @@ class App extends React.Component {
 		this.setState({ testInstruction: '' });
 
 		const showdown = require('showdown');
-    		const converter = new showdown.Converter();
+    	const converter = new showdown.Converter();
 			
 		const current_instruction = this.state.testList[(test_id - 1)/10].Instruction;
 
@@ -543,7 +506,8 @@ class App extends React.Component {
 				console.log(`Ошибка ${xhr.status}: ${xhr.statusText}`); // Например, 404: Not Found
 			} 
 			else { // если всё прошло гладко, выводим результат
-				console.log(`post exists: ${xhr.response.results}`); // response -- это ответ сервера
+				// Вывод в консоль информации о том, есть ли записи с id пользователя в таблице Post
+				//console.log(`post exists: ${xhr.response.results}`); // response -- это ответ сервера
 				this.setState({ post_exists: xhr.response.results });
 			}
 		};
@@ -631,7 +595,8 @@ class App extends React.Component {
 	}
 
 	testAccess () {
-		console.log(`Длина списка вопросов = ${this.state.testInformation.length}`);
+		// Вывод в консоль длины теста
+		//console.log(`Длина списка вопросов = ${this.state.testInformation.length}`);
 		for (let i = 0; i < this.state.testInformation.length; i++) {
 			if (this.state.testInformation[i].isDone == 0) {
 				this.state.countquest = i;
@@ -857,7 +822,8 @@ class App extends React.Component {
 			this.setState({});
 		}
 
-		console.log(this.state.selectedAnswers);
+		// Вывод в консоль списка выбранных ответов
+		//console.log(this.state.selectedAnswers);
 	}
 
 	inputHandleChange (e) {
@@ -881,7 +847,8 @@ class App extends React.Component {
 
 		e.preventDefault();
 	
-		console.log(this.state.inputLabels);
+		// Вывод в консоль введённого в input значения
+		//console.log(this.state.inputLabels);
 	}
 
 	chooseFriends (index) {
@@ -899,8 +866,15 @@ class App extends React.Component {
 		bridge
 			.send("VKWebAppGetFriends", { multi: false })
 			.then(data => {
-				this.state.selectedAnswers[index] = `${data.users[0].first_name} ${data.users[0].last_name} (${data.users[0].id})`;
-				this.setState({});
+				const current_friend = `${data.users[0].first_name} ${data.users[0].last_name} (${data.users[0].id})`;
+				
+				if (!this.state.selectedAnswers.includes(current_friend)) {
+					this.state.selectedAnswers[index] = current_friend;
+					this.setState({});
+				}
+				else {
+					this.testPassingError();
+				}
 			})
 			.catch(error => {
 				// Обработка ошибки вызова или отказа от добавления друзей
@@ -911,9 +885,11 @@ class App extends React.Component {
 	render() {
 	
 	const modal = (
+		
 		<ModalRoot activeModal={this.state.activeModal} onClose={() => this.setActiveModal(null)}>
 			<ModalPage id='modal-instruction'
 				onClose={() => this.setActiveModal(null)}
+				settlingHeight={100}
 				header={
 				<ModalPageHeader
 					right={<PanelHeaderSubmit onClick={() => this.setActiveModal(null)}/>}
@@ -972,6 +948,10 @@ class App extends React.Component {
 		  	<PanelHeader left={<PanelHeaderBack onClick={this.testExit}/>}>
 				<PanelHeaderContent onClick={() => this.setActiveModal('modal-instruction')}>
 					Вопрос {this.state.countquest + 1}
+					&nbsp;<img 
+								src={one_tap}
+								style={{ 'height': '13%', 'width': '13%' }}
+							/>
 				</PanelHeaderContent>
 			</PanelHeader>
 			<Group>
@@ -991,7 +971,6 @@ class App extends React.Component {
 					<Div>{this.state.testInformation[this.state.countquest].Question_Description}</Div>
 				}
 				<Separator/>
-				{/*<FixedLayout vertical="bottom">*/}
 				<Div>
 					<Group>
             			<Progress value={this.state.countquest * (100/this.state.testInformation.length)}/>
@@ -1116,8 +1095,8 @@ class App extends React.Component {
 						</>
 						}
 						{ /* Кнопки "вперёд-назад" */ }
-						{(this.state.testInformation[this.state.countquest].Type != 'button' ||
-						  this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
+						{( this.state.testInformation[this.state.countquest].Type != 'button' ||
+						   this.state.testList[(this.state.testInformation[0].Test_ID - 1)/10].CanRedo == 1) &&
 						<>
 							<Div/>
 							<Button size="xl" stretched mode="primary" onClick={() => this.goForward()}>Вперёд</Button>
@@ -1131,7 +1110,6 @@ class App extends React.Component {
 						}
 					</Div>
 				}
-				{/*</FixedLayout>*/}
 	  		</Group>
 		  </Panel>
 
