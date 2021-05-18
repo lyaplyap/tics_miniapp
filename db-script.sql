@@ -2667,7 +2667,11 @@ BEGIN
 	SET person = (SELECT Person_ID FROM Person WHERE VK_ID = vk);
 	IF person IS NULL THEN
 		SET max-id = (SELECT MAX(Person_ID) + 1 FROM Person);
-		INSERT INTO Person (VK_ID, Person_ID) VALUES (vk, max-id);
+        IF max-id IS NULL THEN
+			INSERT INTO Person (VK_ID, Person_ID) VALUES (vk, 1);
+        ELSE
+			INSERT INTO Person (VK_ID, Person_ID) VALUES (vk, max-id);
+		END IF;
 	END IF;
 END; //
 DELIMITER ;
@@ -2739,6 +2743,7 @@ DROP TABLE Instruction;
 -- Небольшие правки в названиях тестов
 UPDATE Test SET Name = 'Тест на психологическую защиту' WHERE Test_ID = 1;
 UPDATE Test SET Name = 'Большая пятёрка' WHERE Test_ID = 31;
+
 
 
 -- DROP TABLE Post;

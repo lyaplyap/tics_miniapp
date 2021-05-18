@@ -16,11 +16,6 @@ const jsonParser = express.json();
 // Здесь приложение отдаёт статику
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'build')));
- 
-// Простой тест сервера
-app.get('/ping', function (req, res) {
-    return res.send('pong');
-});
 
 
 // Do Result and Update Answers
@@ -1265,84 +1260,85 @@ app.post("/person-post", jsonParser, function (request, response) {
         return response.sendStatus(400);
     }
 
-    const connection = mysql.createConnection({
-        host: DB_HOST,
-        user: DB_USER,
-        database: DB_NAME,
-        password: DB_PASSWORD
-    });
-
     let sql_add = '';
     let post_data = [];
 
-    // Формируем sql-строку и массив данных для записи
-    if (request.body.collection.error_msg != undefined){
-        sql_add = "INSERT INTO Post(Error, VK_ID) VALUES (?, ?);";
-        post_data = [request.body.collection.error_msg, request.body.id]; // ?
-    }
-    else {
-        sql_add = "INSERT INTO Post(Post_VK_ID, VK_ID, Description, Likes, Reposts, Comments, Reply_Date, Views, Attachments_Type) VALUES ";
-        
-        let date = new Date(request.body.collection.items[i].date * 1000);
-        let datetime = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+    if (request.body.collection != undefined) {
 
-        for (let i = 0; i < request.body.collection.items.length; i++) {
-            
-            sql_add += "(?, ?, ?, ?, ?, ?, ?";
-            post_data.push(request.body.collection.items[i].id, 
-                           request.body.collection.items[i].owner_id, 
-                           request.body.collection.items[i].text,
-                           request.body.collection.items[i].likes.count,
-                           request.body.collection.items[i].reposts.count,
-                           request.body.collection.items[i].comments.count,
-                           datetime);
+        const connection = mysql.createConnection({
+            host: DB_HOST,
+            user: DB_USER,
+            database: DB_NAME,
+            password: DB_PASSWORD
+        });
 
-            if (request.body.collection.items[i].views != undefined) {
-                sql_add += ", ?";
-                post_data.push(request.body.collection.items[i].views.count);
-            }
-            else {
-                sql_add += ", NULL";
-            }
-
-            if (request.body.collection.items[i].attachments != undefined) {
-                sql_add += ", ?";
-                post_data.push(request.body.collection.items[i].attachments[0].type);
-            }
-            else {
-                sql_add += ", NULL";
-            }
-
-            if (i != (request.body.collection.items.length - 1)) {
-                sql_add += "), "
-            }
-            else {
-                sql_add += ");"
-            }
+        // Формируем sql-строку и массив данных для записи
+        if (request.body.collection.error_msg != undefined){
+            sql_add = "INSERT INTO Post(Error, VK_ID) VALUES (?, ?);";
+            post_data = [request.body.collection.error_msg, request.body.id]; // ?
         }
-    }
-
-    connection.query(sql_add, post_data, function(error, results) {
-        if (error) {
-            console.log(error);
-            // Закрытие подключения
-            connection.end(function(error) {
-                if (error) {
-                    return console.log("Ошибка: " + error.message);
-                }
-                console.log("Подключение с ошибкой закрыто (person-post)");
-            });
+        else if (request.body.collection.length == 0) {
+            sql_add = 'INSERT INTO Post(Error, VK_ID) VALUES (?, ?);';
+            post_data = ['no post', request.body.id];
         }
         else {
-            // Закрытие подключения
-            connection.end(function(error) {
-                if (error) {
-                    return console.log("Ошибка: " + error.message);
+            sql_add = "INSERT INTO Post(Post_VK_ID, VK_ID, Description, Likes, Reposts, Comments, Reply_Date, Views, Attachments_Type) VALUES ";
+
+            for (let i = 0; i < request.body.collection.length; i++) {
+
+                let date = new Date(request.body.collection[i].date * 1000);
+                let datetime = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+                
+                sql_add += "(?, ?, ?, ?, ?, ?, ?";
+                post_data.push(request.body.collection[i].id, 
+                            request.body.collection[i].owner_id, 
+                            request.body.collection[i].text,
+                            request.body.collection[i].likes.count,
+                            request.body.collection[i].reposts.count,
+                            request.body.collection[i].comments.count,
+                            datetime);
+
+                if (request.body.collection[i].views != undefined) {
+                    sql_add += ", ?";
+                    post_data.push(request.body.collection[i].views.count);
                 }
-                console.log("Подключение закрыто (person-post)");
-            });
+                else {
+                    sql_add += ", NULL";
+                }
+
+                if (request.body.collection[i].attachments != undefined) {
+                    sql_add += ", ?";
+                    post_data.push(request.body.collection[i].attachments[0].type);
+                }
+                else {
+                    sql_add += ", NULL";
+                }
+
+                if (i != (request.body.collection.length - 1)) {
+                    sql_add += "), "
+                }
+                else {
+                    sql_add += ");"
+                }
+            }
         }
-    });
+
+        connection.query(sql_add, post_data, function(error, results) {
+            if (error) {
+                console.log(error);
+            }
+            else {
+                // Закрытие подключения
+                connection.end(function(error) {
+                    if (error) {
+                        return console.log("Ошибка: " + error.message);
+                    }
+                    console.log("Подключение закрыто (person-post)");
+                });
+            }
+        });
+
+    }
 
     response.end('It worked!');
 });
