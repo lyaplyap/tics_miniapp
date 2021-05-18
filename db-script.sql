@@ -2663,11 +2663,11 @@ DELIMITER //
 CREATE PROCEDURE F_UserAuth (vk BIGINT)
 BEGIN
 	DECLARE person INT;
-	DECLARE max_id INT;
+	DECLARE max-id INT;
 	SET person = (SELECT Person_ID FROM Person WHERE VK_ID = vk);
 	IF person IS NULL THEN
-		SET max_id = (SELECT MAX(Person_ID) + 1 FROM Person);
-		INSERT INTO Person (VK_ID, Person_ID) VALUES (vk, max_id);
+		SET max-id = (SELECT MAX(Person_ID) + 1 FROM Person);
+		INSERT INTO Person (VK_ID, Person_ID) VALUES (vk, max-id);
 	END IF;
 END; //
 DELIMITER ;
