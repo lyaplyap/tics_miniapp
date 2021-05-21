@@ -33,7 +33,7 @@ CREATE TABLE Answer(
 
 CREATE TABLE Person_Answer(
     Person_Answer_ID	INT PRIMARY KEY AUTO_INCREMENT,
-    VK_ID	BIGINT,
+    VK_ID		BIGINT,
     Answer_ID	INTEGER,
     Reply_Date 	DATETIME,
     Result_ID   INT DEFAULT 0,
