@@ -611,7 +611,7 @@ app.get("/get-processed-result/:test_id", function(request, response){
 
                 // Обработка результатов ценностного опросника Шварца
                 
-                schwartz_processing_params = {
+                let schwartz_processing_params = {
                     first_test: [],
                     second_test: []
                 }

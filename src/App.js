@@ -34,9 +34,9 @@ class App extends React.Component {
 		user_token: '',		// VK Token пользователя
 
 		// Информация о тесте/тестах
-		testList: [],		// Список всех доступных тестов
+		testList: [],			// Список всех доступных тестов
 		testInformation: [],	// Информация о выбранном тесте
-		testResult: [],		// Результаты последнего прохождения выбранного теста
+		testResult: [],			// Результаты последнего прохождения выбранного теста
 		testInstruction: '',	// Инструкция к выбранному тесту
 		currentTestLable: '',	// Название текущего теста
 
@@ -45,33 +45,33 @@ class App extends React.Component {
 
 		// Функциональные параметры 
 		activePanel: 'panel0',	// Активная панель
-		popout: null,		// Активный popout-элемент
-		activeModal: null,	// Активная модальная страница
-		countquest: 0,		// Номер текущего вопроса
+		popout: null,			// Активный popout-элемент
+		activeModal: null,		// Активная модальная страница
+		countquest: 0,			// Номер текущего вопроса
 		
 		lastQuestionIsAnswered: 0,
 
 		// Параметры для различных типов ответа
 		selectedAnswers: [],	// Выбранные ответы (массив чекбоксов/друзей)
-		inputLabels: [],	// Введённые ответы
+		inputLabels: [],		// Введённые ответы
 
 	}
 
 	  // Инициализация пользователя
-	  this.userDBAuth = this.userDBAuth.bind(this);		// "Авторизация" пользовательского id в БД 
+	  this.userDBAuth = this.userDBAuth.bind(this);			// "Авторизация" пользовательского id в БД 
 
 	  // Функции, что-то получающие с помощью VK Bridge
-	  this.getUserId = this.getUserId.bind(this); 		// Получение идентификатора текущего пользователя (user_id)
+	  this.getUserId = this.getUserId.bind(this); 			// Получение идентификатора текущего пользователя (user_id)
 	  this.getUserToken = this.getUserToken.bind(this); 	// Запрос на получение токена пользователя (user_token)
 	  
 	  // Функции, что-то получающиe с помощью GET-запроса с сервера
-	  this.getTestList = this.getTestList.bind(this); 			// Получение коллекции всех тестов
+	  this.getTestList = this.getTestList.bind(this); 				// Получение коллекции всех тестов
 	  this.getDonePercent = this.getDonePercent.bind(this); 		// Получение процентов отвеченных вопросов
 	  this.getInformation = this.getInformation.bind(this); 		// Получение коллекции с информацией о выбранном тесте
 	  this.getTestResult = this.getTestResult.bind(this); 			// Получение итоговых результатов по выбранному тесту
 
 	  // Функции, что-то отправляющие с помощью POST-запроса на сервер
-	  this.postPersonAnswer = this.postPersonAnswer.bind(this); 	// Отправка ответа пользователя на текущий вопрос на сервер
+	  this.postPersonAnswer = this.postPersonAnswer.bind(this); // Отправка ответа пользователя на текущий вопрос на сервер
 	  this.postUserPost = this.postUserPost.bind(this); 		// Отправка на сервер всех постов со страницы пользователя или ошибки
 
 	  // Функции-обработчики
@@ -81,25 +81,26 @@ class App extends React.Component {
 
 	  // Функции клиента
 	  // (логика теста) 
-	  this.nextQuestion = this.nextQuestion.bind(this);		// Переход к следующему вопросу теста или к результатам через кнопку
-	  this.testActive = this.testActive.bind(this);			// Начало/продолжение тестирования из меню теста
-	  this.toNecessaryPanel = this.toNecessaryPanel.bind(this); 	// Переход в меню выбранного теста
-	  this.testAccess = this.testAccess.bind(this);			// Присвоение countquest номера первого неотвеченного вопроса
+	  this.nextQuestion = this.nextQuestion.bind(this);			// Переход к следующему вопросу теста или к результатам через кнопку
+	  this.testActive = this.testActive.bind(this);				// Начало/продолжение тестирования из меню теста
+	  this.toNecessaryPanel = this.toNecessaryPanel.bind(this); // Переход в меню выбранного теста
+	  this.testAccess = this.testAccess.bind(this);				// Присвоение countquest номера первого неотвеченного вопроса
 	  // (доп. элементы)
-	  this.testExit = this.testExit.bind(this);					// Вызов popout-элемента для выхода в меню теста
-	  this.closePopout = this.closePopout.bind(this);				// Закрытие popout-элемента
-	  this.showFactorClarification = this.showFactorClarification.bind(this); 	// Вызов popout-элемента с описанием выбранного фактора
-	  this.setActiveModal = this.setActiveModal.bind(this); 			// Открытие/закрытие модального окна с инструкцией
-	  this.testPassingError = this.testPassingError.bind(this);			// Вызов popout-элемента при несоблюдении какого-то из условий тестирования
+	  this.testExit = this.testExit.bind(this);								  // Вызов popout-элемента для выхода в меню теста
+	  this.closePopout = this.closePopout.bind(this);						  // Закрытие popout-элемента
+	  this.showFactorClarification = this.showFactorClarification.bind(this); // Вызов popout-элемента с описанием выбранного фактора
+	  this.setActiveModal = this.setActiveModal.bind(this); 				  // Открытие/закрытие модального окна с инструкцией
+	  this.testPassingError = this.testPassingError.bind(this);				  // Вызов popout-элемента при несоблюдении какого-то из условий тестирования
 	  // (кнопки вперёд-назад)
 	  this.goForward = this.goForward.bind(this);	// Вперёд по тесту
-	  this.goBack = this.goBack.bind(this);		// Назад по тесту
+	  this.goBack = this.goBack.bind(this);			// Назад по тесту
 
 	  // Функционал различных типов ответа на вопрос
-	  this.chooseBox = this.chooseBox.bind(this);			// Чекбоксы с выбором множества вариантов
+	  this.chooseBox = this.chooseBox.bind(this);					// Чекбоксы с выбором множества вариантов
 	  this.inputHandleSubmit = this.inputHandleSubmit.bind(this);	// Ввод значения из инпута
 	  this.inputHandleChange = this.inputHandleChange.bind(this);	// Динамическое изменение значения в инпуте
-	  this.chooseFriends = this.chooseFriends.bind(this);		// Выбор из списка друзей
+	  this.chooseFriends = this.chooseFriends.bind(this);			// Выбор из списка друзей
+	  this.buttonForMulti = this.buttonForMulti.bind(this);			// Дополнительная кнопка-пропуск
 	}
 
 	// Инициализация клиента
@@ -157,7 +158,7 @@ class App extends React.Component {
 
 	getUserToken () {
 		bridge
-			.send("VKWebAppGetAuthToken", { "app_id": 0, "scope": "wall" })
+			.send("VKWebAppGetAuthToken", { "app_id": 1, "scope": "wall" })
 			.then(data => {
 				//console.log(data);
 				this.setState({ user_token: data.access_token });
@@ -201,22 +202,6 @@ class App extends React.Component {
 
 	getDonePercent () {
 		let xhr = new XMLHttpRequest();
-
-		// Блокировка интерфейса до подгрузки данных с сервера
-		/* 
-		xhr.addEventListener('readystatechange', () => {
-			
-			if (xhr.readyState !== 4) {
-				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-				this.setState({ popout: <ScreenSpinner /> });
-    			//setTimeout(() => { this.setState({ popout: null }) }, 15000);
-			}
-			if ((xhr.readyState == 4) && (xhr.status == 200)) {
-				//console.log(` Status = ${xhr.status}, State = ${xhr.readyState}`);
-				this.closePopout();
-			}
-		});
-		*/
 
 		xhr.open('GET', `test-percent?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
@@ -406,7 +391,7 @@ class App extends React.Component {
 										"filter": "owner",
 										"count": 100, 
 										"v":"5.84", 
-										"access_token": this.state.user_token != '' ? this.state.user_token : '0'
+										"access_token": this.state.user_token != '' ? this.state.user_token : 'APP_SERVICE_KEY_STRING'
 									}
 						})
 				.then(data => {
@@ -714,14 +699,16 @@ class App extends React.Component {
 				this.setState({});
 			}
 
-			// Ограничения на тест "Опрос-ситуации"
-			if (this.state.testInformation[0].Test_ID === 41 && 
-				this.state.testInformation[this.state.countquest].Type === 'priority-friends') {
-				if ((this.state.testInformation[this.state.countquest].isDone === 0) || 
-					(this.state.testInformation[this.state.countquest].isDone === 1 && this.state.selectedAnswers.length !== 0)) {
-					if (this.state.selectedAnswers.length < 3) {
-						this.testPassingError();
-						return;
+			// Если тип ответов был priority-friends
+			if (this.state.testInformation[this.state.countquest].Type === 'priority-friends') {
+				// Ограничения на тест "Опрос-ситуации"
+				if (this.state.testInformation[0].Test_ID === 41 && this.state.selectedAnswers[0] !== 'Не общаюсь с коллегами ВКонтакте') {
+					if ((this.state.testInformation[this.state.countquest].isDone === 0) || 
+						(this.state.testInformation[this.state.countquest].isDone === 1 && this.state.selectedAnswers.length !== 0)) {
+						if (this.state.selectedAnswers.length < 3) {
+							this.testPassingError();
+							return;
+						}
 					}
 				}
 			}
@@ -879,6 +866,15 @@ class App extends React.Component {
 			.catch(error => {
 				// Обработка ошибки вызова или отказа от добавления друзей
 			})
+	}
+
+	buttonForMulti (message) {
+		this.state.selectedAnswers = [];
+		this.state.selectedAnswers[0] = message;
+		this.setState({});
+		
+		// Обработка ответа
+		this.goForward();
 	}
 
   
@@ -1067,6 +1063,19 @@ class App extends React.Component {
 										onClick={() => this.chooseFriends(index)}>
 											{this.state.selectedAnswers[index] != undefined ? this.state.selectedAnswers[index] : ex.Description}
 									</Button>
+									{(index === (this.state.testInformation[this.state.countquest].Answers.length - 1)) && 
+										(this.state.testInformation[this.state.countquest].Question_ID === 4591  || 
+										 this.state.testInformation[this.state.countquest].Question_ID === 4621) &&
+									<>
+									<Div/>
+									<Button
+										size="xl" 
+										stretched mode="secondary" 
+										onClick={() => this.buttonForMulti('Не общаюсь с коллегами ВКонтакте')}>
+											Не общаюсь с коллегами ВКонтакте
+									</Button>
+									</>
+									}
 								</Group>
 							))
 						}
