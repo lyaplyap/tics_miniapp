@@ -126,6 +126,9 @@ class App extends React.Component {
 
 		xhr.open('GET', `user-db-auth?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
@@ -176,6 +179,9 @@ class App extends React.Component {
 		let xhr = new XMLHttpRequest();
 		xhr.open('GET', 'test-list', true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
@@ -205,6 +211,9 @@ class App extends React.Component {
 
 		xhr.open('GET', `test-percent?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
@@ -219,13 +228,9 @@ class App extends React.Component {
 							this.setState({});
 						}
 					}
-					//this.setState({});
 				}
 			}
 		};
-
-		// Вывод в консоль списка тестов
-		//console.log(this.state.testList);
 	}
 
 	getInformation (test_id) {
@@ -251,6 +256,9 @@ class App extends React.Component {
 
 		xhr.open('GET', `test-information/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
@@ -298,6 +306,9 @@ class App extends React.Component {
 
 		xhr.open('GET', `get-processed-result/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
@@ -373,6 +384,10 @@ class App extends React.Component {
 		// Посылаем запрос с данными на адрес "/person-answer"
         xhr.open("POST", "/person-answer", true);
 
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
+
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.send(data);
 	}
@@ -407,6 +422,10 @@ class App extends React.Component {
 					// Посылаем запрос с данными на адрес "/person-answer"
 					xhr.open("POST", "/person-post", true);
 
+					//
+					xhr.setRequestHeader('Autorization', window.location.search);
+					//
+
 					xhr.setRequestHeader("Content-Type", "application/json");
 					xhr.send(temp);
 				})
@@ -422,6 +441,10 @@ class App extends React.Component {
 
 					// Посылаем запрос с данными на адрес "/person-answer"
 					xhr.open("POST", "/person-post", true);
+
+					//
+					xhr.setRequestHeader('Autorization', window.location.search);
+					//
 
 					xhr.setRequestHeader("Content-Type", "application/json");
 					xhr.send(temp);
@@ -453,6 +476,9 @@ class App extends React.Component {
 
 		xhr.open('GET', `do-results-update-answers/${test_id}?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка
@@ -485,6 +511,9 @@ class App extends React.Component {
 
 		xhr.open('GET', `check-post-exists?user_id=${this.state.user_id}`, true);
 		xhr.responseType = 'json';
+		//
+		xhr.setRequestHeader('Autorization', window.location.search);
+		//
 		xhr.send();
 		xhr.onload = () => {
 			if (xhr.status != 200) { // анализируем HTTP-статус ответа, если статус не 200, то произошла ошибка

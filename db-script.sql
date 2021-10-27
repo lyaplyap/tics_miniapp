@@ -2325,6 +2325,31 @@ SET Instruction = 'Мы проводим исследование по взаи�
 WHERE Test_ID = 41;
 
 
+-- ОБНОВЛЕНИЕ ОПРОСА-СИТУАЦИИ ОТ 05.09.2021
+
+UPDATE Question SET Description = 'Вам пришло сообщение. У Вас бы возникло стремление помочь, если бы данная просьба поступила от:' WHERE Question_ID = 4561;
+UPDATE Question SET Description = 'Вам пришло сообщение. Вы бы, скорее всего, позвонили сами или распространили это сообщение среди своих друзей, если бы оно пришло от:' WHERE Question_ID = 4581;
+UPDATE Question SET Description = 'Вам пришло сообщение. Вы бы честно рассказали, если бы сообщение пришло от:' WHERE Question_ID = 4631;
+
+DELETE FROM Answer WHERE Question_ID = 4621;
+DELETE FROM Answer WHERE Question_ID = 4641;
+
+DELETE FROM Person_MultiAnswer WHERE Question_ID = 4621;
+DELETE FROM Person_MultiAnswer WHERE Question_ID = 4641;
+
+DELETE FROM Question WHERE Question_ID = 4621;
+DELETE FROM Question WHERE Question_ID = 4641;
+
+UPDATE Question SET Photo = 'https://imagizer.imageshack.com/v2/xq90/922/ICXcon.jpg' WHERE Question_ID = 4561;
+UPDATE Question SET Photo = 'https://imagizer.imageshack.com/v2/xq90/924/HlwsRL.jpg' WHERE Question_ID = 4571;
+UPDATE Question SET Photo = 'https://imagizer.imageshack.com/v2/xq90/922/JCtvQ5.jpg' WHERE Question_ID = 4581;
+UPDATE Question SET Photo = 'https://imagizer.imageshack.com/v2/xq90/923/i2l78q.jpg' WHERE Question_ID = 4591;
+UPDATE Question SET Photo = 'https://imagizer.imageshack.com/v2/xq90/923/oBWdIz.jpg' WHERE Question_ID = 4601;
+UPDATE Question SET Photo = 'https://imagizer.imageshack.com/v2/xq90/923/Tn0q0w.jpg' WHERE Question_ID = 4631;
+
+-- КОНЕЦ ОБНОВЛЕНИЯ
+
+
 -- Порядок удаления таблиц
 -- DROP TABLE Post;
 -- DROP TABLE Result;
