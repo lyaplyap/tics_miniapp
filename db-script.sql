@@ -1,21 +1,23 @@
 USE heroku_...;
 
+SET @@auto_increment_increment=10;
+
 -- DEPLOY ALL TABLES
 
-CREATE TABLE Person(
+CREATE TABLE Person (
 	VK_ID	    BIGINT PRIMARY KEY,
     Person_ID	INTEGER NOT NULL
 );
 
-CREATE TABLE Test(
-    Test_ID	    INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE Test (
+	Test_ID	    INT PRIMARY KEY AUTO_INCREMENT,
     Name	    VARCHAR(200) NOT NULL,
     Instruction TEXT,
     CanRedo     INTEGER DEFAULT 0
 );
 
-CREATE TABLE Question(
-    Question_ID	INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE Question (
+	Question_ID	INT PRIMARY KEY AUTO_INCREMENT,
     Test_ID	    INTEGER,
     Description	VARCHAR(5000) NOT NULL,
     Category	VARCHAR(500) NOT NULL,
@@ -52,21 +54,6 @@ CREATE TABLE Result(
     Reply_Date  DATETIME,
     FOREIGN KEY (VK_ID) REFERENCES Person (VK_ID),
     FOREIGN KEY (Test_ID)   REFERENCES Test (Test_ID)
-);
-
-CREATE TABLE Post(
-    Post_ID	    INT PRIMARY KEY AUTO_INCREMENT,
-    Error	    VARCHAR(250),
-    Post_VK_ID  BIGINT,
-    VK_ID	    BIGINT NOT NULL,
-    Description	MEDIUMTEXT,
-    Attachments_Type VARCHAR(100),
-    Likes	    INTEGER,
-    Views	    INTEGER,
-    Reposts	    INTEGER,
-    Comments	INTEGER,
-    Reply_Date 	DATETIME,
-    FOREIGN KEY (VK_ID)  REFERENCES Person (VK_ID)
 );
 
 CREATE TABLE Person_MultiAnswer(
@@ -1133,7 +1120,7 @@ INSERT INTO Answer (Answer_ID, Question_ID, Description, Value) VALUES
 (7511, 2821, 'нет', 0),
 (7521, 2831, 'да', 0),
 (7531, 2831, 'не уверен', 0),
-(7541, 2831, 'нет', 0); 
+(7541, 2831, 'нет', 0);
 
 -- "Ценностный опросник Шварца"
 INSERT INTO Test (Test_ID, Name, Instruction, CanRedo) VALUES (21, 'Ценностный опросник Шварца', 'В первом тесте данного опросника Вам необходимо ответить на вопросы: «Какие ценности (жизненные цели) важны лично для меня как руководящие принципы моей жизни и какие менее важны?». Ваша задача заключается в том, чтобы оценить степень важности каждой по следующему алгоритму:\n+ В вопросах с 1 по 30 включительно для каждой ценности оцените ее значимость оценкой от «7» (наивысшей значимости) до «-1» (противоречащей Вашим принципам).\n+ С 31 по 57 вопрос включительно необходимо оценить, насколько важна для Вас каждая из приведённых ценностей. Они выражены в способах действия. Оценка даётся от «7» наивысшей значимости) до «-1» (противоречащей Вашим принципам).\n\nВо втором тесте опросника приведены описания некоторых людей. Пожалуйста, прочитайте каждое описание и подумайте, насколько описанный человек похож или не похож на Вас. Затем нажмите на кнопку с соответствующей оценкой. Сама оценка даётся от «4» (очень похож) до «-1» (совсем не похож).\n\n**Вы можете вернуться к инструкции, нажав на надпись «Вопрос №...» наверху**.', 0);
@@ -1237,7 +1224,7 @@ INSERT INTO Question (Question_ID, Test_ID, Description, Category, Type, A_Mode)
 (3791, 21, 'Он всегда хочет быть тем, кто принимает решения. Ему нравится быть лидером.', 'Власть (индивидуальный приоритет)', 'button', 'single'),
 (3801, 21, 'Для него важно приспосабливаться к природе, быть частью ее. Он верит, что люди не должны изменять природу.', 'Универсализм (индивидуальный приоритет)', 'button', 'single');
 
-INSERT INTO Answer (Question_ID, Description, Value) VALUES
+INSERT INTO Answer (Answer_ID, Question_ID, Description, Value) VALUES
 (7551, 2841, 'Высшей значимости (7)', 7),
 (7561, 2841, 'Очень важной (6)', 6),
 (7571, 2841, 'Важной (5)', 5),
@@ -2149,6 +2136,7 @@ INSERT INTO Answer (Answer_ID, Question_ID, Description, Value) VALUES
 (18731, 4541, '-2', 5), (18741, 4541, '-1', 4), (18751, 4541, '0', 3), (18761, 4541, '1', 2), (18771, 4541, '2', 1), 
 (18781, 4551, '-2', 5), (18791, 4551, '-1', 4), (18801, 4551, '0', 3), (18811, 4551, '1', 2), (18821, 4551, '2', 1);
 
+/*
 -- "Опрос-ситуации"
 INSERT INTO Test (Test_ID, Name, Instruction, CanRedo) VALUES (41, 'Опрос-ситуации', 'Мы проводим исследование по взаимодействию пользователей в социальных сетях. Все собранные **ответы** будут **обезличены**, мы не используем личную информацию, для исследования необходимы только параметры профиля.\n\nВам будет предложено 14 вопросов, среди которых 3 – общие; в 11-ти нужно выбрать 3–5 друзей из списка друзей во ВКонтакте:\n+ 9 ситуаций обращения за помощью через личные сообщения ВКонтакте. В этих вопросах нужно выбрать тех друзей, на просьбы которых Вы откликнетесь с большей вероятностью.\n+ 2 вопроса про отношения с Вашими друзьями.\n\nВезде **друзей** нужно расположить **в порядке убывания** вероятности отклика. При прочтении ситуации не стоит обращать внимание на используемый род. Некоторые ситуации могут напоминать спам, и если Вы затрудняетесь дать на них ответ, то укажите тех, кто первым приходит на ум.\n\n*Пример: на просьбу перевести деньги я вероятнее всего откликнусь, если она поступила от: 1. Васи Пупкина; 2. Пети Кукурузкина; 3. Ивана Рыбкина; 4. Пелагеи Милявской; 5. Каролины Перепелкиной.*\n\n**Вы можете вернуться к инструкции, нажав на надпись «Вопрос №...» наверху**.', 1);
 
@@ -2241,6 +2229,7 @@ INSERT INTO Answer (Answer_ID, Question_ID, Description, Value) VALUES
 (19521, 4681, 'Другое', 0),
 (19531, 4691, 'Instagram (пример ввода: @dscs.pro)', 0),
 (19541, 4691, 'Одноклассниках (пример ввода: ok.ru/profile/1)', 0);
+*/
 
 -- "Темперамент"
 INSERT INTO Test (Test_ID, Name, Instruction, CanRedo) VALUES 
